@@ -2,6 +2,7 @@ import { WebSocketServer } from 'ws';
 import { WebSocketAuth } from './websocketAuth.js';
 import MessageQueue from './messageQueue.js';
 import Logger from './logger.js';
+import DuelService from '../services/duel.service.js';
 
 class WebSocketManager {
   constructor() {
@@ -111,6 +112,21 @@ class WebSocketManager {
           break;
         case 'pomodoro_sync':
           this.handlePomodoroSync(userId, message);
+          break;
+        case 'duel_invite':
+          this.handleDuelInvite(userId, message);
+          break;
+        case 'duel_accept':
+          this.handleDuelAccept(userId, message);
+          break;
+        case 'duel_start':
+          this.handleDuelStart(userId, message);
+          break;
+        case 'duel_submit':
+          this.handleDuelSubmit(userId, message);
+          break;
+        case 'duel_forfeit':
+          this.handleDuelForfeit(userId, message);
           break;
         default:
           Logger.warn('Unknown message type', { type: message.type, userId });
@@ -332,6 +348,101 @@ class WebSocketManager {
       duration,
       timestamp: new Date().toISOString()
     }, userId);
+  }
+
+  async handleDuelInvite(userId, message) {
+    const { opponentId, problemId } = message;
+    
+    try {
+      const duel = await DuelService.createDuel(userId, opponentId, problemId);
+      
+      // Response to the inviter
+      this.sendToUser(userId, {
+        type: 'duel:challenge_sent',
+        duelId: duel._id,
+        opponentId,
+        status: 'sent',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      this.sendToUser(userId, {
+        type: 'error',
+        message: error.message || 'Failed to send duel invitation',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  async handleDuelAccept(userId, message) {
+    const { duelId } = message;
+    
+    try {
+      const duel = await DuelService.acceptDuel(duelId, userId);
+      
+      // Notify both users that duel is accepted and ready to start
+      const acceptData = {
+        type: 'duel:accepted',
+        duelId: duel._id,
+        timestamp: new Date().toISOString()
+      };
+      
+      this.sendToUser(duel.challengerId, acceptData);
+      this.sendToUser(duel.opponentId, acceptData);
+    } catch (error) {
+      this.sendToUser(userId, {
+        type: 'error',
+        message: error.message || 'Failed to accept duel',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  async handleDuelStart(userId, message) {
+    const { duelId } = message;
+    
+    try {
+      const duel = await DuelService.startDuel(duelId, userId);
+      
+      // The service already handles broadcasting the start event
+    } catch (error) {
+      this.sendToUser(userId, {
+        type: 'error',
+        message: error.message || 'Failed to start duel',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  async handleDuelSubmit(userId, message) {
+    const { duelId, submissionData } = message;
+    
+    try {
+      const duel = await DuelService.submitSolution(duelId, userId, submissionData);
+      
+      // The service already handles broadcasting progress/completion
+    } catch (error) {
+      this.sendToUser(userId, {
+        type: 'error',
+        message: error.message || 'Failed to submit solution',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  async handleDuelForfeit(userId, message) {
+    const { duelId } = message;
+    
+    try {
+      const duel = await DuelService.forfeitDuel(duelId, userId);
+      
+      // The service already handles broadcasting forfeit
+    } catch (error) {
+      this.sendToUser(userId, {
+        type: 'error',
+        message: error.message || 'Failed to forfeit duel',
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 }
 

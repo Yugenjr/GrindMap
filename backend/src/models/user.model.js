@@ -78,6 +78,19 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     }],
+    shadowBanned: {
+      type: Boolean,
+      default: false,
+      select: false,
+    },
+    shadowBannedAt: {
+      type: Date,
+      select: false,
+    },
+    bannedAt: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,

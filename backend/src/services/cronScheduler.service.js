@@ -215,6 +215,19 @@ class CronScheduler {
       tables: ['jobs', 'logs', 'sessions']
     });
 
+    // Every 15 minutes: integrity check for active users
+    this.schedule('integrity_check_active', '*/15 * * * *', 'integrity', {
+      type: 'check_active_users',
+      timeWindow: 60,
+      maxUsers: 100,
+      minActivityCount: 5
+    });
+
+    // Daily: cleanup expired integrity reports
+    this.schedule('integrity_cleanup_expired', '0 4 * * *', 'integrity', {
+      type: 'cleanup_expired'
+    });
+
     Logger.info('Default schedules setup', { count: this.schedules.size });
   }
 

@@ -1,41 +1,84 @@
 import { puppeteerPool } from '../../utils/puppeteerPool.js';
+import RetryManager from '../../utils/retryManager.js';
+import Logger from '../../utils/logger.js';
+
+const retryManager = new RetryManager({
+  maxRetries: 3,
+  baseDelay: 2000,
+  maxDelay: 15000,
+  backoffMultiplier: 2
+});
+
+/**
+ * Add random human-like delays to avoid bot detection
+ */
+const randomDelay = (min = 1000, max = 3000) => {
+  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+  return new Promise(resolve => setTimeout(resolve, delay));
+};
 
 export async function scrapeHackerRank(username) {
-  console.log(`[HackerRank Scraper] Starting scrape for username: "${username}"`);
+  return retryManager.execute(
+    async () => await scrapeHackerRankInternal(username),
+    { platform: 'HackerRank', username }
+  );
+}
+
+async function scrapeHackerRankInternal(username) {
+  Logger.info(`[HackerRank Scraper] Starting scrape for username: "${username}"`);
 
   const browser = await puppeteerPool.getBrowser();
-  const page = await browser.newPage();
+  const page = await puppeteerPool.createPage(browser, {
+    loadImages: false // Speed up loading
+  });
 
   try {
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-
     const profileUrl = `https://www.hackerrank.com/profile/${username}`;
-    console.log(`[HackerRank Scraper] Navigating to: ${profileUrl}`);
+    Logger.debug(`[HackerRank Scraper] Navigating to: ${profileUrl}`);
 
-    const response = await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-    console.log(`[HackerRank Scraper] Response Status: ${response.status()}`);
+    // Add random delay before navigation to appear more human
+    await randomDelay(500, 1500);
+
+    const response = await page.goto(profileUrl, { 
+      waitUntil: 'domcontentloaded', // Faster than networkidle2
+      timeout: 60000 
+    });
+    
+    Logger.debug(`[HackerRank Scraper] Response Status: ${response.status()}`);
 
     if (response.status() === 404) {
       throw new Error('User not found');
     }
 
+    // Check for Cloudflare or CAPTCHA challenges
+    const pageContent = await page.content();
+    if (pageContent.includes('cf-challenge') || 
+        pageContent.includes('captcha') ||
+        pageContent.includes('challenge-platform')) {
+      Logger.warn('[HackerRank Scraper] Bot detection challenge detected');
+      throw new Error('BOT_DETECTED - CAPTCHA or challenge page encountered');
+    }
+
     const pageTitle = await page.title();
-    console.log(`[HackerRank Scraper] Page Title: ${pageTitle}`);
+    Logger.debug(`[HackerRank Scraper] Page Title: ${pageTitle}`);
 
     if (pageTitle.toLowerCase().includes('page not found')) {
       throw new Error('User not found');
     }
 
-    // Wait for page to stabilize
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for page to stabilize with randomized delay
+    await randomDelay(2000, 4000);
 
     // Extract badge information using ElementHandles
     const scrapedBadges = [];
     try {
+      // Wait for badges to load
+      await page.waitForSelector('.hacker-badge', { timeout: 10000 }).catch(() => {
+        Logger.warn('[HackerRank Scraper] No badges found or timeout waiting for badges');
+      });
+      
       const badgeElements = await page.$$('.hacker-badge');
-      console.log(`[HackerRank Scraper] Found ${badgeElements.length} badge elements`);
+      Logger.debug(`[HackerRank Scraper] Found ${badgeElements.length} badge elements`);
 
       for (const badgeEl of badgeElements) {
         try {
@@ -76,14 +119,17 @@ export async function scrapeHackerRank(username) {
           }
 
           scrapedBadges.push({ name, stars, icon });
-          console.log(`[HackerRank Scraper] Badge: "${name}" (${stars} stars)`);
+          Logger.debug(`[HackerRank Scraper] Badge: "${name}" (${stars} stars)`);
         } catch (e) {
-          console.log('[HackerRank Scraper] Could not extract badge info:', e.message);
+          Logger.debug('[HackerRank Scraper] Could not extract badge info:', e.message);
         }
       }
     } catch (e) {
-      console.log('[HackerRank Scraper] Could not find badges:', e.message);
+      Logger.warn('[HackerRank Scraper] Could not find badges:', e.message);
     }
+
+    // Add delay before fetching submission history
+    await randomDelay(1000, 2000);
 
     // Fetch submission history by navigating to API endpoint
     let submissionHistory = {};
@@ -91,7 +137,7 @@ export async function scrapeHackerRank(username) {
     try {
       const historyUrl = `https://www.hackerrank.com/rest/hackers/${username}/submission_histories`;
       const historyResponse = await page.goto(historyUrl, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'domcontentloaded',
         timeout: 15000,
       });
       const historyText = await historyResponse.text();
@@ -102,11 +148,11 @@ export async function scrapeHackerRank(username) {
         (acc, val) => acc + (parseInt(val, 10) || 0),
         0
       );
-      console.log(
+      Logger.info(
         `[HackerRank Scraper] Submission history: ${Object.keys(submissionHistory).length} days, ${problemsSolved} total solved`
       );
     } catch (e) {
-      console.log('[HackerRank Scraper] Could not fetch submission history:', e.message);
+      Logger.warn('[HackerRank Scraper] Could not fetch submission history:', e.message);
     }
 
     const profileName = pageTitle.split(' - ')[0] || username;
@@ -114,7 +160,7 @@ export async function scrapeHackerRank(username) {
     // Calculate total stars across all badges
     const totalStars = scrapedBadges.reduce((acc, badge) => acc + (badge.stars || 0), 0);
 
-    console.log(
+    Logger.info(
       `[HackerRank Scraper] Complete. Solved: ${problemsSolved}, Badges: ${scrapedBadges.length}, Total Stars: ${totalStars}`
     );
 
@@ -138,14 +184,23 @@ export async function scrapeHackerRank(username) {
       },
     };
   } catch (err) {
-    console.error('[HackerRank Scraper] ERROR:', err.message);
+    Logger.error('[HackerRank Scraper] ERROR:', {
+      error: err.message,
+      username,
+      stack: err.stack
+    });
 
     if (err.message.includes('User not found')) {
       throw new Error('User not found');
     }
+    
+    if (err.message.includes('BOT_DETECTED')) {
+      throw err; // Let retry manager handle it
+    }
+    
     throw new Error(`Failed to fetch HackerRank data: ${err.message}`);
   } finally {
     await puppeteerPool.closePage(page);
-    console.log('[HackerRank Scraper] Page closed');
+    Logger.debug('[HackerRank Scraper] Page closed');
   }
 }

@@ -13,7 +13,14 @@ class RetryManager {
       'ECONNREFUSED',
       'ETIMEDOUT',
       'NETWORK_ERROR',
-      'RATE_LIMITED'
+      'RATE_LIMITED',
+      'TIMEOUT',
+      'NAVIGATION_TIMEOUT',
+      'PROTOCOL_ERROR',
+      'TARGET_CLOSED',
+      'SESSION_CLOSED',
+      'CAPTCHA_DETECTED',
+      'BOT_DETECTED'
     ];
   }
 
@@ -44,7 +51,8 @@ class RetryManager {
         const delay = this.calculateDelay(attempt);
         Logger.warn(`Operation failed, retrying in ${delay}ms (attempt ${attempt + 1}/${this.maxRetries + 1})`, {
           ...context,
-          error: error.message
+          error: error.message,
+          errorCode: error.code
         });
         
         await this.sleep(delay);

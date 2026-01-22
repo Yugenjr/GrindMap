@@ -5,6 +5,7 @@ import AdvancedCacheManager from '../utils/advancedCacheManager.js';
 import Job from '../models/job.model.js';
 import UserQuota from '../models/userQuota.model.js';
 import Logger from '../utils/logger.js';
+import IntegrityJob from '../jobs/integrity.job.js';
 
 class JobHandlers {
   // Scraping job handler
@@ -300,6 +301,49 @@ class JobHandlers {
     });
     
     return result.deletedCount;
+  }
+
+  // Integrity detection job handler
+  static async handleIntegrity(data, job) {
+    const { type, ...options } = data;
+    
+    Logger.info('Processing integrity job', { type, jobId: job.id });
+    
+    try {
+      let result;
+      
+      switch (type) {
+        case 'check_active_users':
+          result = await IntegrityJob.runIntegrityCheck(options);
+          break;
+          
+        case 'check_tournament':
+          result = await IntegrityJob.runTournamentIntegrityCheck(options.tournamentId);
+          break;
+          
+        case 'cleanup_expired':
+          result = await IntegrityJob.cleanupExpiredReports();
+          break;
+          
+        default:
+          throw new Error(`Unknown integrity job type: ${type}`);
+      }
+      
+      Logger.info('Integrity job completed', {
+        type,
+        jobId: job.id,
+        result
+      });
+      
+      return result;
+    } catch (error) {
+      Logger.error('Integrity job failed', {
+        type,
+        jobId: job.id,
+        error: error.message
+      });
+      throw error;
+    }
   }
 }
 

@@ -282,6 +282,14 @@ class AnalyticsService {
       { $inc: { count }, $set: { difficulty, metadata } },
       { upsert: true, new: true }
     );
+
+    // Sync active sprints for the user
+    try {
+      const SprintService = (await import('./sprint.service.js')).default;
+      await SprintService.syncSprintProgress(userId);
+    } catch (error) {
+      Logger.error("Failed to sync sprint progress after activity logging", { error: error.message, userId });
+    }
   }
 }
 

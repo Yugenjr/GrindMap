@@ -13,10 +13,14 @@ class ScraperErrorHandler {
       ...context
     };
 
+    // Determine error type for metrics
+    let errorType = this.getErrorType(error);
+
     // Log the original error for debugging
     Logger.error(`Scraper error for ${platform}:${username}`, {
       error: error.message,
       stack: error.stack,
+      errorType,
       ...errorContext
     });
 
@@ -32,7 +36,7 @@ class ScraperErrorHandler {
         `Network error while fetching ${platform} data. Please try again later.`,
         503,
         ERROR_CODES.NETWORK_ERROR,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -42,7 +46,7 @@ class ScraperErrorHandler {
         `Rate limit exceeded for ${platform}. Please wait before trying again.`,
         429,
         ERROR_CODES.RATE_LIMIT_EXCEEDED,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -52,7 +56,7 @@ class ScraperErrorHandler {
         `Authentication failed for ${platform}. Please check your credentials.`,
         401,
         ERROR_CODES.AUTHENTICATION_ERROR,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -62,7 +66,7 @@ class ScraperErrorHandler {
         `User '${username}' not found on ${platform}. Please check the username.`,
         404,
         ERROR_CODES.USER_NOT_FOUND,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -72,7 +76,7 @@ class ScraperErrorHandler {
         `${platform} service is temporarily unavailable. Please try again later.`,
         502,
         ERROR_CODES.EXTERNAL_API_ERROR,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -82,7 +86,7 @@ class ScraperErrorHandler {
         `Invalid data format received from ${platform}. The service may be experiencing issues.`,
         502,
         ERROR_CODES.DATA_PARSING_ERROR,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -92,7 +96,7 @@ class ScraperErrorHandler {
         `Request to ${platform} timed out. Please try again later.`,
         504,
         ERROR_CODES.TIMEOUT_ERROR,
-        errorContext
+        { ...errorContext, errorType }
       );
     }
 
@@ -101,7 +105,7 @@ class ScraperErrorHandler {
       `Failed to fetch data from ${platform}. Please try again later.`,
       500,
       ERROR_CODES.SCRAPING_ERROR,
-      { ...errorContext, originalError: error.message }
+      { ...errorContext, originalError: error.message, errorType }
     );
   }
 
@@ -183,10 +187,24 @@ class ScraperErrorHandler {
    */
   static isTimeoutError(error) {
     const message = error.message?.toLowerCase();
-    
+
     return error.code === 'ETIMEDOUT' ||
            message?.includes('timeout') ||
            message?.includes('timed out');
+  }
+
+  /**
+   * Get error type for metrics
+   */
+  static getErrorType(error) {
+    if (this.isNetworkError(error)) return 'network';
+    if (this.isRateLimitError(error)) return 'rate_limit';
+    if (this.isAuthError(error)) return 'auth';
+    if (this.isUserNotFoundError(error)) return 'user_not_found';
+    if (this.isServerError(error)) return 'server';
+    if (this.isParsingError(error)) return 'parsing';
+    if (this.isTimeoutError(error)) return 'timeout';
+    return 'unknown';
   }
 
   /**
@@ -279,16 +297,118 @@ class ScraperErrorHandler {
   }
 
   /**
+   * Retry logic with exponential backoff
+   */
+  static async withRetry(operation, platform, username, context = {}, maxRetries = 3) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+
+        // Don't retry on certain errors
+        if (this.isNonRetryableError(error)) {
+          throw error;
+        }
+
+        if (attempt < maxRetries) {
+          const delay = this.calculateBackoffDelay(attempt);
+          Logger.warn(`Retrying ${platform} request for ${username} (attempt ${attempt + 1}/${maxRetries + 1})`, {
+            delay: `${delay}ms`,
+            error: error.message,
+            ...context
+          });
+
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Calculate exponential backoff delay with jitter
+   */
+  static calculateBackoffDelay(attempt) {
+    const baseDelay = 1000; // 1 second
+    const maxDelay = 30000; // 30 seconds
+    const exponentialDelay = baseDelay * Math.pow(2, attempt);
+    const jitter = Math.random() * 0.1 * exponentialDelay; // 10% jitter
+    return Math.min(exponentialDelay + jitter, maxDelay);
+  }
+
+  /**
+   * Sleep utility
+   */
+  static sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if error should not be retried
+   */
+  static isNonRetryableError(error) {
+    const status = error.response?.status;
+    const message = error.message?.toLowerCase();
+
+    // Don't retry on client errors (4xx) except rate limits
+    if (status >= 400 && status < 500 && status !== 429) {
+      return true;
+    }
+
+    // Don't retry on authentication errors
+    if (this.isAuthError(error) || this.isUserNotFoundError(error)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get cached fallback data
+   */
+  static async getCachedFallback(platform, username) {
+    try {
+      // Import cache manager dynamically to avoid circular dependencies
+      const { default: cacheManager } = await import('./cacheManager.js');
+
+      const cacheKey = `${platform.toLowerCase()}:${username}`;
+      const cached = await cacheManager.get(cacheKey);
+
+      if (cached && cached.data) {
+        // Check if cache is not too old (allow up to 24 hours for fallback)
+        const cacheAge = Date.now() - (cached.timestamp || 0);
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+        if (cacheAge < maxAge) {
+          return cached.data;
+        }
+      }
+    } catch (error) {
+      Logger.warn(`Failed to retrieve cached fallback for ${platform}:${username}`, {
+        error: error.message
+      });
+    }
+
+    return null;
+  }
+
+  /**
    * Log scraper performance metrics
    */
-  static logPerformanceMetrics(platform, username, startTime, success, fromCache = false) {
+  static async logPerformanceMetrics(platform, username, startTime, success, fromCache = false, fromFallback = false, errorType = null) {
     const duration = Date.now() - startTime;
-    
+
     Logger.info(`Scraper performance: ${platform}`, {
       username,
       duration: `${duration}ms`,
       success,
       fromCache,
+      fromFallback,
+      errorType,
       timestamp: new Date().toISOString()
     });
 
@@ -298,6 +418,14 @@ class ScraperErrorHandler {
         username,
         duration: `${duration}ms`
       });
+    }
+
+    // Record metrics
+    try {
+      const { default: MetricsCollector } = await import('./metricsCollector.js');
+      MetricsCollector.recordScraperMetrics(platform, username, success, duration, errorType, fromCache, fromFallback);
+    } catch (metricsError) {
+      Logger.warn('Failed to record scraper metrics', { error: metricsError.message });
     }
   }
 }

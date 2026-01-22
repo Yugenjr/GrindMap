@@ -1,3 +1,4 @@
+import { createErrorResponse, createSuccessResponse, ERROR_CODES } from '../utils/standardResponse.js';
 import { scrapeLeetCode } from './scraping/leetcode.scraper.js';
 import { fetchCodeforcesStats } from './scraping/codeforces.scraper.js';
 import { fetchCodeChefStats } from './scraping/codechef.scraper.js';
@@ -10,8 +11,7 @@ import { scrapeHackerRank } from './scraping/hackerrank.scraper.js';
 import { normalizeHackerRank } from './normalization/hackerrank.normalizer.js';
 import { PLATFORMS, MESSAGES } from '../constants/app.constants.js';
 import { AppError, ERROR_CODES } from '../utils/appError.js';
-import redis from '../config/redis.js';
-import AdvancedCacheManager from '../utils/advancedCacheManager.js';
+import APICache from '../utils/apiCache.js';
 import config from '../config/env.js';
 import DataChangeEmitter from '../utils/dataChangeEmitter.js';
 import NotificationService from './notification.service.js';
@@ -29,16 +29,12 @@ class PlatformService {
    * Fetch user data from LeetCode with caching and real-time updates
    */
   async fetchLeetCodeData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.LEETCODE}:${username}`;
-
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for LeetCode:', cacheError.message);
+    const cacheKey = APICache.platformKey('leetcode', username);
+    
+    // Check cache first
+    const cached = APICache.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
     }
 
     try {
@@ -46,50 +42,32 @@ class PlatformService {
       const result = {
         platform: PLATFORMS.LEETCODE,
         username,
-        ...scraperResult.data,
-        fromCache: scraperResult.fromCache,
-        fromFallback: scraperResult.fromFallback,
+        ...scraperResult,
       };
-      // Only cache if not from fallback
-      if (!scraperResult.fromFallback) {
-        try {
-          await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-        } catch (cacheError) {
-          console.warn('Cache write failed for LeetCode:', cacheError.message);
-        }
-      }
+      
+      // Cache for 15 minutes
+      APICache.set(cacheKey, result, 900);
+      
       if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate(PLATFORMS.LEETCODE, username, result, userId);
-        } catch (emitError) {
-          console.warn('Real-time update failed for LeetCode:', emitError.message);
-        }
+        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.LEETCODE, username, result, userId);
       }
 
       return result;
     } catch (error) {
-      throw new AppError(
-        `${MESSAGES.SCRAPING_FAILED}: LeetCode - ${error.message}`,
-        500,
-        ERROR_CODES.SCRAPING_ERROR
+      throw createErrorResponse(
+        `Failed to fetch LeetCode data: ${error.message}`,
+        ERROR_CODES.SCRAPING_FAILED,
+        500
       );
     }
   }
 
-  /**
-   * Fetch user data from Codeforces with caching and real-time updates
-   */
   async fetchCodeforcesData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.CODEFORCES}:${username}`;
-
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for Codeforces:', cacheError.message);
+    const cacheKey = APICache.platformKey('codeforces', username);
+    
+    const cached = APICache.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
     }
 
     try {
@@ -101,19 +79,11 @@ class PlatformService {
         username,
         ...normalizedData,
       };
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-      } catch (cacheError) {
-        console.warn('Cache write failed for Codeforces:', cacheError.message);
-      }
-
+      
+      APICache.set(cacheKey, result, 900);
+      
       if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate(PLATFORMS.CODEFORCES, username, result, userId);
-        } catch (emitError) {
-          console.warn('Real-time update failed for Codeforces:', emitError.message);
-        }
+        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.CODEFORCES, username, result, userId);
       }
 
       return result;
@@ -126,20 +96,12 @@ class PlatformService {
     }
   }
 
-  /**
-   * Fetch user data from CodeChef with caching and real-time updates
-   */
   async fetchCodeChefData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.CODECHEF}:${username}`;
-
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for CodeChef:', cacheError.message);
+    const cacheKey = APICache.platformKey('codechef', username);
+    
+    const cached = APICache.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
     }
 
     try {
@@ -151,19 +113,11 @@ class PlatformService {
         username,
         ...normalizedData,
       };
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-      } catch (cacheError) {
-        console.warn('Cache write failed for CodeChef:', cacheError.message);
-      }
-
+      
+      APICache.set(cacheKey, result, 900);
+      
       if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate(PLATFORMS.CODECHEF, username, result, userId);
-        } catch (emitError) {
-          console.warn('Real-time update failed for CodeChef:', emitError.message);
-        }
+        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.CODECHEF, username, result, userId);
       }
 
       return result;
@@ -340,13 +294,10 @@ class PlatformService {
    * Invalidate cache for user
    */
   async invalidateUserCache(username) {
-    const platforms = Object.values(PLATFORMS);
-    const promises = platforms.map(platform => {
-      const cacheKey = `platform:${platform}:${username}`;
-      return redis.del(cacheKey);
+    const platforms = ['leetcode', 'codeforces', 'codechef', 'atcoder', 'github', 'skillrack'];
+    platforms.forEach(platform => {
+      APICache.delete(APICache.platformKey(platform, username));
     });
-
-    await Promise.all(promises);
   }
 
   /**

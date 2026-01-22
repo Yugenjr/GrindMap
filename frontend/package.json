@@ -28,7 +28,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "analyze": "vite build && vite-bundle-visualizer",
+    "build:prod": "vite build --mode production"
   },
   "eslintConfig": {
     "extends": [
