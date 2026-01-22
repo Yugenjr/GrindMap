@@ -114,6 +114,21 @@ class EmailService {
             throw error;
         }
     }
+
+    /**
+     * Send mentorship session confirmation email
+     */
+    static async sendMentorshipConfirmation(mentorEmail, menteeEmail, mentorName, menteeName, session) {
+        // In a real implementation, this would send actual emails
+        // For now, we'll just log the action
+        console.log(`Mentorship confirmation sent:`);
+        console.log(`Mentor: ${mentorName} (${mentorEmail})`);
+        console.log(`Mentee: ${menteeName} (${menteeEmail})`);
+        console.log(`Session: ${session.scheduledAt} for ${session.duration} minutes`);
+        
+        // Return a mock success response
+        return { success: true, message: 'Confirmation sent successfully' };
+    }
 }
 
 export default new EmailService();
