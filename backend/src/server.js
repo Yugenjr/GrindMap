@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
-import connectDB from './config/db.js';
+import DatabasePoolMonitor from './utils/databasePoolMonitor.js';
 import dbManager from './utils/databaseManager.js';
 import { corsOptions } from './config/cors.js';
 import passport from 'passport';
@@ -12,6 +12,7 @@ import { securityHeaders } from './middlewares/security.middleware.js';
 import { enhancedSecurityHeaders } from './middlewares/enhancedSecurity.middleware.js';
 import { requestLogger, securityMonitor } from './middlewares/logging.middleware.js';
 import { sanitizeInput } from './middlewares/validation.middleware.js';
+import { apiTimeout } from './middlewares/requestTimeout.middleware.js';
 import { advancedRateLimit } from './middlewares/antiBypassRateLimit.middleware.js';
 import { correlationId } from './middlewares/correlationId.middleware.js';
 import { performanceMetrics } from './middlewares/performance.middleware.js';
@@ -28,9 +29,9 @@ import DistributedSessionManager from './utils/distributedSessionManager.js';
 import WebSocketManager from './utils/websocketManager.js';
 import BatchProcessingService from './services/batchProcessing.service.js';
 import CacheWarmingService from './utils/cacheWarmingService.js';
-import JobQueue from './services/jobQueue.service.js';
+import RobustJobQueue from './utils/robustJobQueue.js';
 import CronScheduler from './services/cronScheduler.service.js';
-import JobHandlers from './services/jobHandlers.service.js';
+import ReliableJobHandlers from './services/reliableJobHandlers.service.js';
 import HealthMonitor from './utils/healthMonitor.js';
 import AlertManager from './utils/alertManager.js';
 import {
@@ -58,23 +59,33 @@ import grindRoomRoutes from './routes/grindRoom.routes.js';
 import tournamentRoutes from './routes/tournament.routes.js';
 import duelRoutes from './routes/duel.routes.js';
 
+import monitoringRoutes from './routes/monitoring.routes.js';
 // Import secure logger to prevent JWT exposure
-import './utils/secureLogger.js';
 
+import './utils/secureLogger.js';
 // Import constants
 import { HTTP_STATUS, ENVIRONMENTS } from './constants/app.constants.js';
 import Logger from './utils/logger.js';
 
+import EnvValidator from './utils/envValidator.js';
+
+// Validate environment variables before starting
+EnvValidator.validate();
+const config = EnvValidator.getConfig();
+
 const app = express();
 const server = createServer(app);
-const PORT = process.env.PORT || 8080;
-const NODE_ENV = process.env.NODE_ENV || ENVIRONMENTS.DEVELOPMENT;
+const PORT = config.port;
+const NODE_ENV = config.nodeEnv;
 
 // Initialize global error boundary
 globalErrorBoundary();
 
-// Connect to database
-// Connect to database removed (handled in startServer)
+// Connect to database with pooling
+connectDB();
+
+// Start database pool monitoring
+DatabasePoolMonitor.startMonitoring(60000);
 
 // Initialize WebSocket server
 WebSocketManager.initialize(server);
@@ -94,8 +105,8 @@ JobQueue.registerHandler('cleanup', JobHandlers.handleCleanup);
 JobQueue.registerHandler('export', JobHandlers.handleExport);
 JobQueue.registerHandler('integrity', JobHandlers.handleIntegrity);
 
-// Start job processing
-JobQueue.startProcessing({ concurrency: 3, types: [] });
+// Start robust job processing
+RobustJobQueue.startProcessing();
 
 // Start cron scheduler
 CronScheduler.start();
@@ -130,6 +141,12 @@ app.use(geoSecurityCheck);
 app.use(securityAudit);
 app.use(abuseDetection);
 app.use(autoRefresh);
+
+// Request timeout handling
+app.use(apiTimeout);
+
+// API response compression
+app.use(apiCompression);
 
 // Anti-bypass rate limiting
 app.use(advancedRateLimit);
@@ -189,7 +206,8 @@ app.use('/api/security', securityRoutes);
 app.use('/api/database', databaseRoutes);
 app.use('/api/websocket', websocketRoutes);
 app.use('/api/quota', quotaRoutes);
-app.use('/api/jobs', jobsRoutes);
+app.use('/api/upload', fileUploadRoutes);
+app.use('/api/job-monitoring', jobMonitoringRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/rooms', grindRoomRoutes);
 app.use('/api/tournaments', tournamentRoutes);

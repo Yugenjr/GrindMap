@@ -2,29 +2,41 @@ import React, { useState, lazy, Suspense } from "react";
 import "./App.css";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import CircularProgress from "./components/CircularProgress";
-import DemoPage from "./components/DemoPage";
-import BadgeCollection from "./components/BadgeCollection";
-import GoalDashboard from "./components/GoalDashboard";
 import UsernameInputs from "./components/UsernameInputs";
 import PlatformCard from "./components/PlatformCard";
 import ThemeToggle from "./components/ThemeToggle";
-import ContributorsHallOfFame from "./components/ContributorsHallOfFame";
-import {
-  DashboardLayout,
-  LoadingSkeleton,
-  ErrorState,
-} from "./components/dashboard";
-
-import { ThemeProvider } from "./contexts/ThemeContext";
-import UserProfile from "./components/UserProfile";
-import AuthModal from "./components/AuthModal";
+import LoadingFallback from "./components/LoadingFallback";
 import { useGrindMapData } from "./hooks/useGrindMapData";
 import { PLATFORMS, OVERALL_GOAL } from "./utils/platforms";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+// Lazy load heavy components for better initial load performance
 const AnalyticsDashboard = lazy(
   () => import("./components/AnalyticsDashboard"),
 );
+const DemoPage = lazy(() => import("./components/DemoPage"));
+const BadgeCollection = lazy(() => import("./components/BadgeCollection"));
+const GoalDashboard = lazy(() => import("./components/GoalDashboard"));
+const ContributorsHallOfFame = lazy(
+  () => import("./components/ContributorsHallOfFame"),
+);
+const UserProfile = lazy(() => import("./components/UserProfile"));
+const AuthModal = lazy(() => import("./components/AuthModal"));
+const DashboardLayout = lazy(() =>
+  import("./components/dashboard").then((mod) => ({
+    default: mod.DashboardLayout,
+  })),
+);
+const LoadingSkeleton = lazy(() =>
+  import("./components/dashboard").then((mod) => ({
+    default: mod.LoadingSkeleton,
+  })),
+);
+const ErrorState = lazy(() =>
+  import("./components/dashboard").then((mod) => ({ default: mod.ErrorState })),
+);
+
+import { ThemeProvider } from "./contexts/ThemeContext";
 
 function AppContent() {
   const [showDemo, setShowDemo] = useState(false);
@@ -134,15 +146,15 @@ function AppContent() {
   return (
     <div className="app">
       {showDemo ? (
-        <>
+        <Suspense fallback={<LoadingFallback message="Loading demo..." />}>
           <DemoPage onBack={() => setShowDemo(false)} />
-        </>
+        </Suspense>
       ) : showAnalytics ? (
         <>
           <button onClick={() => setShowAnalytics(false)} className="back-btn">
             ← Back to Main
           </button>
-          <Suspense fallback={<div>Loading analytics...</div>}>
+          <Suspense fallback={<LoadingFallback message="Loading analytics..." />}>
             <AnalyticsDashboard platformData={platformData} />
           </Suspense>
         </>
@@ -151,17 +163,23 @@ function AppContent() {
           <button onClick={() => setShowBadges(false)} className="back-btn">
             ← Back to Main
           </button>
-          <BadgeCollection />
+          <Suspense fallback={<LoadingFallback message="Loading achievements..." />}>
+            <BadgeCollection />
+          </Suspense>
         </>
       ) : showGoals ? (
         <>
           <button onClick={() => setShowGoals(false)} className="back-btn">
             ← Back to Main
           </button>
-          <GoalDashboard />
+          <Suspense fallback={<LoadingFallback message="Loading goals..." />}>
+            <GoalDashboard />
+          </Suspense>
         </>
       ) : showContributors ? (
-        <ContributorsHallOfFame onBack={() => setShowContributors(false)} />
+        <Suspense fallback={<LoadingFallback message="Loading contributors..." />}>
+          <ContributorsHallOfFame onBack={() => setShowContributors(false)} />
+        </Suspense>
       ) : showHRDashboard ? (
         <>
           <button
@@ -170,21 +188,23 @@ function AppContent() {
           >
             ← Back to Main
           </button>
-          {loading.hackerrank ? (
-            <LoadingSkeleton />
-          ) : platformData.hackerrank?.error ? (
-            <ErrorState
-              message={platformData.hackerrank.error}
-              onRetry={() => {
-                setShowHRDashboard(false);
-              }}
-            />
-          ) : (
-            <DashboardLayout
-              data={platformData.hackerrank}
-              username={usernames.hackerrank}
-            />
-          )}
+          <Suspense fallback={<LoadingFallback message="Loading dashboard..." />}>
+            {loading.hackerrank ? (
+              <LoadingSkeleton />
+            ) : platformData.hackerrank?.error ? (
+              <ErrorState
+                message={platformData.hackerrank.error}
+                onRetry={() => {
+                  setShowHRDashboard(false);
+                }}
+              />
+            ) : (
+              <DashboardLayout
+                data={platformData.hackerrank}
+                username={usernames.hackerrank}
+              />
+            )}
+          </Suspense>
         </>
       ) : (
         <>
@@ -192,7 +212,9 @@ function AppContent() {
           <div className="app-header">
             <h1>GrindMap</h1>
             {isAuthenticated ? (
-              <UserProfile />
+              <Suspense fallback={<div style={{ padding: '10px' }}>...</div>}>
+                <UserProfile />
+              </Suspense>
             ) : (
               <button
                 onClick={() => setShowAuthModal(true)}
@@ -482,10 +504,14 @@ function AppContent() {
             </div>
           </div>
         </>
-      )}
-
-      <AuthModal
-        isOpen={showAuthModal}
+      )Suspense fallback={null}>
+        {showAuthModal && (
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+          />
+        )}
+      </Suspense isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
       />
     </div>

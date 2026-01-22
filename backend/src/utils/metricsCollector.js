@@ -149,14 +149,25 @@ class MetricsCollector {
   // HTTP request metrics
   recordHttpRequest(method, path, statusCode, duration, size = 0) {
     const tags = { method, path: this.normalizePath(path), status: statusCode };
-    
+
     this.increment('http.requests.total', 1, tags);
     this.histogram('http.request.duration', duration, tags);
     this.histogram('http.response.size', size, tags);
-    
+
     // Error rate tracking
     if (statusCode >= 400) {
       this.increment('http.requests.errors', 1, tags);
+
+      // Track specific error types
+      if (statusCode >= 500) {
+        this.increment('http.requests.errors.server', 1, tags);
+      } else if (statusCode === 429) {
+        this.increment('http.requests.errors.rate_limit', 1, tags);
+      } else if (statusCode === 404) {
+        this.increment('http.requests.errors.not_found', 1, tags);
+      } else if (statusCode >= 400 && statusCode < 500) {
+        this.increment('http.requests.errors.client', 1, tags);
+      }
     }
   }
 
@@ -276,6 +287,38 @@ class MetricsCollector {
     } catch (error) {
       Logger.warn('Metric persistence failed', { error: error.message });
     }
+  }
+
+  // Scraper metrics
+  recordScraperMetrics(platform, username, success, duration, errorType = null, fromCache = false, fromFallback = false) {
+    const tags = { platform: platform.toLowerCase() };
+
+    // Increment total scraper requests
+    this.increment('scraper.requests.total', 1, tags);
+
+    // Track success/failure
+    if (success) {
+      this.increment('scraper.requests.success', 1, tags);
+    } else {
+      this.increment('scraper.requests.errors', 1, tags);
+
+      // Track error types
+      if (errorType) {
+        this.increment(`scraper.requests.errors.${errorType}`, 1, tags);
+      }
+    }
+
+    // Track cache usage
+    if (fromCache) {
+      this.increment('scraper.requests.from_cache', 1, tags);
+    }
+
+    if (fromFallback) {
+      this.increment('scraper.requests.from_fallback', 1, tags);
+    }
+
+    // Track response times
+    this.histogram('scraper.request.duration', duration, tags);
   }
 
   // Reset metrics (for testing)
