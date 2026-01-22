@@ -55,6 +55,7 @@ import quotaRoutes from './routes/quota.routes.js';
 import jobsRoutes from './routes/jobs.routes.js';
 import monitoringRoutes from './routes/monitoring.routes.js';
 import grindRoomRoutes from './routes/grindRoom.routes.js';
+import repoStatsRoutes from './routes/repoStats.routes.js';
 
 // Import secure logger to prevent JWT exposure
 import './utils/secureLogger.js';
@@ -189,6 +190,7 @@ app.use('/api/quota', quotaRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/rooms', grindRoomRoutes);
+app.use('/api/repo-stats', repoStatsRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -210,6 +212,7 @@ app.get('/api', (req, res) => {
       monitoring: '/api/monitoring',
       health: '/health',
       database: '/api/database',
+      repoStats: '/api/repo-stats',
     },
     correlationId: req.correlationId,
   });

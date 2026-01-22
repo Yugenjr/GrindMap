@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './Leaderboard.css';
-
 const Leaderboard = ({ onBack }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [type, setType] = useState('global');
   const [loading, setLoading] = useState(true);
   const [userRank, setUserRank] = useState(null);
-
   useEffect(() => {
     fetchLeaderboard();
     fetchUserRank();
   }, [type]);
-
   const fetchLeaderboard = async () => {
     try {
       const token = localStorage.getItem('token');

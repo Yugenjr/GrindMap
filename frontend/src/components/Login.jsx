@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
-
 const Login = ({ onToggle }) => {
   const [formData, setFormData] = useState({
     email: '',

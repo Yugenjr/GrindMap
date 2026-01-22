@@ -18,6 +18,7 @@ import {
 import { ThemeProvider } from "./contexts/ThemeContext";
 import UserProfile from "./components/UserProfile";
 import AuthModal from "./components/AuthModal";
+import RepoStats from "./components/RepoStats";
 import { useGrindMapData } from "./hooks/useGrindMapData";
 import { PLATFORMS, OVERALL_GOAL } from "./utils/platforms";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -34,6 +35,7 @@ function AppContent() {
   const [showContributors, setShowContributors] = useState(false);
   const [showHRDashboard, setShowHRDashboard] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showRepoStats, setShowRepoStats] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [user, setUser] = useState(null);
 
@@ -162,6 +164,13 @@ function AppContent() {
         </>
       ) : showContributors ? (
         <ContributorsHallOfFame onBack={() => setShowContributors(false)} />
+      ) : showRepoStats ? (
+        <>
+          <button onClick={() => setShowRepoStats(false)} className="back-btn">
+            ← Back to Main
+          </button>
+          <RepoStats />
+        </>
       ) : showHRDashboard ? (
         <>
           <button
@@ -280,6 +289,18 @@ function AppContent() {
               style={btnStyle}
             >
               👥 Contributors
+            </button>
+            <button
+              onClick={() => setShowRepoStats(true)}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.background = "rgba(100,149,237,0.3)")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+              style={{ ...btnStyle, border: "1px solid #6495ED" }}
+            >
+              📊 Repo Stats
             </button>
           </div>
 
