@@ -13,7 +13,7 @@ _Effortlessly monitor your progress across multiple coding platforms with beauti
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=102)](https://github.com/Yugenjr/GrindMap)
 [![GitHub Stars](https://img.shields.io/github/stars/Yugenjr/GrindMap?style=social)](https://github.com/Yugenjr/GrindMap)
-[![Repository Views](https://grindmap-api.onrender.com/api/repo-stats/badge)](https://github.com/Yugenjr/GrindMap)
+[![Repository Views](https://img.shields.io/badge/views-0-4c1)](https://github.com/Yugenjr/GrindMap)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)](https://reactjs.org/)
