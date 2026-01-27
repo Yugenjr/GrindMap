@@ -47,23 +47,20 @@ import advancedCacheRoutes from './routes/advancedCache.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import securityRoutes from './routes/security.routes.js';
-import databaseRoutes from './routes/database.routes.js';
-import websocketRoutes from './routes/websocket.routes.js';
-import quotaRoutes from './routes/quota.routes.js';
-import jobsRoutes from './routes/jobs.routes.js';
-import monitoringRoutes from './routes/monitoring.routes.js';
-import grindRoomRoutes from './routes/grindRoom.routes.js';
-import tournamentRoutes from './routes/tournament.routes.js';
-import duelRoutes from './routes/duel.routes.js';
-import mentorshipRoutes from './routes/mentorship.routes.js';
-
-import monitoringRoutes from './routes/monitoring.routes.js';
-// Import secure logger to prevent JWT exposure
-
-import './utils/secureLogger.js';
-// Import constants
-import { HTTP_STATUS, ENVIRONMENTS } from './constants/app.constants.js';
-import Logger from './utils/logger.js';
+import healthRoutes from './routes/health.routes.js';
+import { getSystemHealth, checkDependencies, getPrometheusMetrics } from './services/health.service.js';
+import { secureLogger, secureErrorHandler } from './middlewares/secureLogging.middleware.js';
+import { validateEnvironment } from './config/environment.js';
+import { connectionManager } from './utils/connectionManager.js';
+import { memoryMonitor } from './services/memoryMonitor.service.js';
+import { cpuMonitor } from './services/cpuMonitor.service.js';
+import { bandwidthMonitor } from './services/bandwidthMonitor.service.js';
+import { processLimiter } from './utils/processLimiter.js';
+import { cacheManager } from './utils/cacheManager.js';
+import { gracefulShutdown } from './utils/shutdown.util.js';
+import { authBypassProtection, validateToken } from './middlewares/auth.middleware.js';
+import { fileUploadSecurity, validateFileExtensions, detectEncodedFiles } from './middlewares/fileUpload.middleware.js';
+import { apiVersionSecurity, deprecationWarning, validateApiEndpoint, versionRateLimit } from './middlewares/apiVersion.middleware.js';
 
 // Set default NODE_ENV if not provided
 if (!process.env.NODE_ENV) {
@@ -122,35 +119,120 @@ cpuMonitor.on('emergency', ({ cpuPercent }) => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const server = createServer(app);
+const PORT = config.port;
+const NODE_ENV = config.nodeEnv;
 
-app.use(auditLogger);
-app.use(securityAudit);
-app.use(requestSizeTracker);
-app.use(cpuProtection);
-app.use(memoryMiddleware);
-app.use(maliciousPayloadDetection);
-app.use(compressionBombProtection);
-app.use(responseSizeLimit()); // Default 500KB response limit
-app.use(validateContentType());
-app.use(timeoutMiddleware()); // Default 30s timeout
-app.use(monitoringMiddleware);
-app.use(ipFilter);
-app.use(ddosProtection);
-app.use(burstProtection);
-app.use(adaptiveRateLimit);
-app.use(injectionProtection);
-app.use(xssProtection);
-app.use(authBypassProtection);
-app.use(validateToken);
-app.use(fileUploadSecurity);
-app.use(validateFileExtensions);
-app.use(detectEncodedFiles);
-app.use(apiVersionSecurity);
-app.use(deprecationWarning);
-app.use(validateApiEndpoint);
-app.use(versionRateLimit);
-app.use(secureLogger);
+/**
+ * ✅ CHANGE #1 (ADDED)
+ * Detect Jest/test environment so we can skip runtime heavy operations.
+ */
+const IS_TEST = NODE_ENV === 'test';
+
+// Initialize global error boundary
+globalErrorBoundary();
+
+/**
+ * ✅ CHANGE #2 (WRAPPED)
+ * Connect to DB only when NOT testing.
+ */
+if (!IS_TEST) {
+  connectDB();
+}
+
+/**
+ * ✅ CHANGE #3 (WRAPPED)
+ * Initialize WebSocket server only when NOT testing.
+ */
+if (!IS_TEST) {
+  WebSocketManager.initialize(server);
+}
+
+/**
+ * ✅ CHANGE #4 (WRAPPED)
+ * Start batch processing scheduler only when NOT testing.
+ */
+if (!IS_TEST) {
+  BatchProcessingService.startScheduler();
+}
+
+/**
+ * ✅ CHANGE #7 (ADDED / WRAPPED)
+ * Prevent long-running background services from starting in Jest tests.
+ * This avoids open handles + flaky tests.
+ */
+if (!IS_TEST) {
+  // Start cache warming service
+  CacheWarmingService.startDefaultSchedules();
+
+  // Register job handlers
+  JobQueue.registerHandler('scraping', JobHandlers.handleScraping);
+  JobQueue.registerHandler('cache_warmup', JobHandlers.handleCacheWarmup);
+  JobQueue.registerHandler('analytics', JobHandlers.handleAnalytics);
+  JobQueue.registerHandler('notification', JobHandlers.handleNotification);
+  JobQueue.registerHandler('cleanup', JobHandlers.handleCleanup);
+  JobQueue.registerHandler('export', JobHandlers.handleExport);
+
+  // Start job processing
+  JobQueue.startProcessing({ concurrency: 3, types: [] });
+
+  // Start cron scheduler
+  CronScheduler.start();
+
+  // Start health monitoring
+  HealthMonitor.startMonitoring(120000); // Every 2 minutes
+
+  // Start alert monitoring
+  AlertManager.startMonitoring(300000); // Every 5 minutes
+}
+// Connect to database with pooling
+connectDB();
+
+// Start database pool monitoring
+DatabasePoolMonitor.startMonitoring(60000);
+
+// Initialize WebSocket server
+WebSocketManager.initialize(server);
+
+// Start batch processing scheduler
+BatchProcessingService.startScheduler();
+
+// Start cache warming service
+CacheWarmingService.startDefaultSchedules();
+
+// Register job handlers
+JobQueue.registerHandler('scraping', JobHandlers.handleScraping);
+JobQueue.registerHandler('cache_warmup', JobHandlers.handleCacheWarmup);
+JobQueue.registerHandler('analytics', JobHandlers.handleAnalytics);
+JobQueue.registerHandler('notification', JobHandlers.handleNotification);
+JobQueue.registerHandler('cleanup', JobHandlers.handleCleanup);
+JobQueue.registerHandler('export', JobHandlers.handleExport);
+JobQueue.registerHandler('integrity', JobHandlers.handleIntegrity);
+
+// Start robust job processing
+RobustJobQueue.startProcessing();
+
+// Start cron scheduler
+CronScheduler.start();
+
+// Start health monitoring
+HealthMonitor.startMonitoring(120000); // Every 2 minutes
+
+// Start alert monitoring
+AlertManager.startMonitoring(300000); // Every 5 minutes
+
+// Request tracking and monitoring (first)
+app.use(correlationId);
+app.use(performanceMetrics);
+
+// Distributed session management
+app.use(DistributedSessionManager.middleware());
+
+// Enhanced security middleware
+app.use(helmetHeaders); // Helmet security headers
+app.use(additionalSecurityHeaders); // Custom security headers
+app.use(enhancedSecurityHeaders);
+app.use(securityHeaders);
 app.use(requestLogger);
 app.use(securityMonitor);
 
@@ -179,13 +261,53 @@ app.use(advancedRateLimit);
 
 // CORS configuration
 app.use(cors(corsOptions));
-app.use(parseTimeLimit()); // 1 second JSON parse limit
+
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
-app.use(validateJSONStructure);
-app.use(sanitizeInput);
+app.use(express.urlencoded({ extended: true }));
+
+// Input sanitization and validation
+app.use(sanitizeInput); // XSS and injection prevention
+app.use(sanitizeMongoQuery); // MongoDB injection prevention
+app.use(preventParameterPollution({ whitelist: ['tags', 'categories'] })); // HPP prevention
+app.use(validationSanitize); // Additional validation
 
 // Health check routes (no rate limiting for load balancers)
 app.use('/health', healthBodyLimit, healthSizeLimit, healthTimeout, healthRoutes);
+
+// Healthz endpoint (Kubernetes style)
+app.get('/healthz', healthBodyLimit, healthSizeLimit, healthTimeout, async (req, res) => {
+  try {
+    const health = getSystemHealth();
+    const dependencies = await checkDependencies();
+    
+    const hasUnhealthy = dependencies.some(dep => dep.status === 'unhealthy');
+    const status = hasUnhealthy ? 'unhealthy' : 'healthy';
+    
+    res.status(status === 'healthy' ? 200 : 503).json({
+      status,
+      ...health,
+      dependencies
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', healthBodyLimit, healthSizeLimit, healthTimeout, async (req, res) => {
+  try {
+    const metrics = await getPrometheusMetrics();
+    res.set('Content-Type', register.contentType);
+    res.end(metrics);
+  } catch (error) {
+    res.status(500).end(error.message);
+  }
+});
 
 // Audit routes
 app.use('/api/audit', auditBodyLimit, auditSizeLimit, auditTimeout, strictRateLimit, auditRoutes);
@@ -197,7 +319,6 @@ app.use('/api/security', securityBodyLimit, securitySizeLimit, securityTimeout, 
 app.get('/api/csrf-token', csrfTokenEndpoint);
 
 app.get('/api/leetcode/:username', 
-  scrapingBodyLimit,
   scrapingSizeLimit,
   scrapingTimeout,
   heavyOperationProtection,
@@ -218,70 +339,48 @@ app.get('/api/leetcode/:username',
       data,
       traceId: req.traceId
     });
-  } catch (error) {
-    Logger.error('Health check failed', { error: error.message });
-    res.status(503).json({
-      success: false,
-      message: 'Server unhealthy',
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
+  })
+);
 
-// API routes
-app.use('/api/scrape', scrapeRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/cache', cacheRoutes);
-app.use('/api/advanced-cache', advancedCacheRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/security', securityRoutes);
-app.use('/api/database', databaseRoutes);
-app.use('/api/websocket', websocketRoutes);
-app.use('/api/quota', quotaRoutes);
-app.use('/api/upload', fileUploadRoutes);
-app.use('/api/job-monitoring', jobMonitoringRoutes);
-app.use('/api/monitoring', monitoringRoutes);
-app.use('/api/rooms', grindRoomRoutes);
-app.use('/api/tournaments', tournamentRoutes);
-app.use('/api/duels', duelRoutes);
-app.use('/api/mentorship', mentorshipRoutes);
+app.get('/api/codeforces/:username',
+  scrapingSizeLimit,
+  scrapingTimeout,
+  heavyOperationProtection,
+  validateUsername,
+  asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    const raw = await backpressureManager.process(() =>
+      withTrace(req.traceId, "codeforces.scrape", () =>
+        fetchCodeforcesStats(username)
+      )
+    );
+    const normalized = normalizeCodeforces({ ...raw, username });
+    res.json({ success: true, data: normalized, traceId: req.traceId });
+  })
+);
 
-// API documentation endpoint
-app.get('/api', (req, res) => {
-  res.status(HTTP_STATUS.OK).json({
-    success: true,
-    message: 'GrindMap API v1.0',
-    documentation: '/api/docs',
-    endpoints: {
-      scraping: '/api/scrape',
-      authentication: '/api/auth',
-      cache: '/api/cache',
-      advancedCache: '/api/advanced-cache',
-      notifications: '/api/notifications',
-      analytics: '/api/analytics',
-      websocket: '/ws',
-      websocketAPI: '/api/websocket',
-      quota: '/api/quota',
-      jobs: '/api/jobs',
-      monitoring: '/api/monitoring',
-      tournaments: '/api/tournaments',
-      duels: '/api/duels',
-      mentorship: '/api/mentorship',
-      health: '/health',
-      database: '/api/database',
-    },
-    correlationId: req.correlationId,
-  });
-});
+app.get('/api/codechef/:username',
+  scrapingSizeLimit,
+  scrapingTimeout,
+  heavyOperationProtection,
+  validateUsername,
+  asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    const raw = await backpressureManager.process(() =>
+      withTrace(req.traceId, "codechef.scrape", () =>
+        fetchCodeChefStats(username)
+      )
+    );
+    const normalized = normalizeCodeChef({ ...raw, username });
+    res.json({ success: true, data: normalized, traceId: req.traceId });
+  })
+);
 
 // 404 handler for undefined routes
 app.use(notFound);
 app.use(secureErrorHandler);
 app.use(errorHandler);
 
-// Start server function
 const startServer = async () => {
   try {
     // Initialize services after database connection

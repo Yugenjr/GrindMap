@@ -50,3 +50,4 @@ coverage/
 tmp/
 temp/
 *.tmp
+package-lock.json

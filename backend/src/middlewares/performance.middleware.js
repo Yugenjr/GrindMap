@@ -1,4 +1,5 @@
 import Logger from '../utils/logger.js';
+import { incrementRequestCount, recordRequestDuration } from '../services/health.service.js';
 
 /**
  * Performance metrics tracking middleware
@@ -12,6 +13,10 @@ export const performanceMetrics = (req, res, next) => {
   res.on('finish', () => {
     const duration = Date.now() - startTime;
     const endMemory = process.memoryUsage();
+    
+    // Record Prometheus metrics
+    incrementRequestCount(req.method, req.route?.path || req.path, res.statusCode);
+    recordRequestDuration(req.method, req.route?.path || req.path, duration);
     
     // Log request performance
     Logger.request(req, res, duration);
