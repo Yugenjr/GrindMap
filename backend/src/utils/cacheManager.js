@@ -1,3 +1,6 @@
+import Redis from 'ioredis';
+import Logger from './logger.js';
+
 class CacheManager {
   constructor() {
     this.caches = new Map();
@@ -5,30 +8,28 @@ class CacheManager {
     this.maxAge = 30 * 60 * 1000; // 30 minutes default TTL
   }
 
-  createCache(name, options = {}) {
-    const cache = {
-      data: new Map(),
-      maxSize: options.maxSize || this.maxSize,
-      maxAge: options.maxAge || this.maxAge,
-      hits: 0,
-      misses: 0,
-      created: Date.now()
-    };
-    
-    this.caches.set(name, cache);
-    console.log(`📦 Cache '${name}' created (max: ${cache.maxSize}, ttl: ${cache.maxAge}ms)`);
-    
-    return cache;
-  }
+  initRedis() {
+    try {
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: process.env.REDIS_PORT || 6379,
+        retryDelayOnFailover: 100,
+        maxRetriesPerRequest: 1,
+        lazyConnect: true,
+        enableOfflineQueue: false,
+      });
 
-  get(cacheName, key) {
-    const cache = this.caches.get(cacheName);
-    if (!cache) return null;
-    
-    const entry = cache.data.get(key);
-    if (!entry) {
-      cache.misses++;
-      return null;
+      this.redis.on('connect', () => {
+        this.isConnected = true;
+        Logger.info('Redis connected');
+      });
+
+      this.redis.on('error', (err) => {
+        this.isConnected = false;
+        Logger.warn('Redis unavailable, using fallback');
+      });
+    } catch (error) {
+      Logger.warn('Redis initialization failed, caching disabled');
     }
     
     // Check expiration
