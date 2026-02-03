@@ -8,6 +8,7 @@ import ActivityHistory from "./components/ActivityHistory";
 import PlatformManager from "./components/PlatformManager";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Analytics from "./components/Analytics";
+import Goals from "./components/Goals";
 
 function App() {
   return (
@@ -74,6 +75,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Analytics />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/goals"
+          element={
+            <ProtectedRoute>
+              <Goals />
             </ProtectedRoute>
           }
         />

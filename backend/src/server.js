@@ -53,8 +53,7 @@ import quotaRoutes from './routes/quota.routes.js';
 import jobsRoutes from './routes/jobs.routes.js';
 import monitoringRoutes from './routes/monitoring.routes.js';
 import grindRoomRoutes from './routes/grindRoom.routes.js';
-import achievementRoutes from './routes/achievement.routes.js';
-import leaderboardRoutes from './routes/leaderboard.routes.js';
+import pathfinderRoutes from './routes/pathfinder.routes.js';
 
 import monitoringRoutes from './routes/monitoring.routes.js';
 // Import secure logger to prevent JWT exposure
@@ -271,8 +270,7 @@ app.use('/api/upload', fileUploadRoutes);
 app.use('/api/job-monitoring', jobMonitoringRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/rooms', grindRoomRoutes);
-app.use('/api/achievements', achievementRoutes);
-app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/pathfinder', pathfinderRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -292,10 +290,7 @@ app.get('/api', (req, res) => {
       quota: '/api/quota',
       jobs: '/api/jobs',
       monitoring: '/api/monitoring',
-      rooms: '/api/rooms',
-      sprints: '/api/sprints',
-      achievements: '/api/achievements',
-      leaderboard: '/api/leaderboard',
+      pathfinder: '/api/pathfinder',
       health: '/health',
       database: '/api/database',
     },

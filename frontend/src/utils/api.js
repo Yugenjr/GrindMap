@@ -891,6 +891,199 @@ export const analyticsAPI = {
   },
 };
 
+// Goals mock data and helpers
+const mockGoals = [
+  {
+    id: 'g1',
+    title: 'Daily Warmup',
+    type: 'problems',
+    target: 1,
+    progress: 60,
+    timeframe: 'daily',
+    platform: 'LeetCode',
+    difficulty: 'Easy',
+    status: 'active',
+    startDate: new Date(Date.now() - 3 * 86400000).toISOString(),
+    endDate: new Date(Date.now() + 4 * 86400000).toISOString(),
+    streakGoal: true,
+  },
+  {
+    id: 'g2',
+    title: 'Weekly Medium Grind',
+    type: 'problems',
+    target: 7,
+    progress: 40,
+    timeframe: 'weekly',
+    platform: 'Codeforces',
+    difficulty: 'Medium',
+    status: 'active',
+    startDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+    endDate: new Date(Date.now() + 2 * 86400000).toISOString(),
+    streakGoal: false,
+  },
+  {
+    id: 'g3',
+    title: 'Monthly Hard Push',
+    type: 'difficulty',
+    target: 10,
+    progress: 80,
+    timeframe: 'monthly',
+    platform: 'All',
+    difficulty: 'Hard',
+    status: 'active',
+    startDate: new Date(Date.now() - 12 * 86400000).toISOString(),
+    endDate: new Date(Date.now() + 18 * 86400000).toISOString(),
+    streakGoal: false,
+  },
+  {
+    id: 'g4',
+    title: 'Contest Participation',
+    type: 'contest',
+    target: 2,
+    progress: 100,
+    timeframe: 'monthly',
+    platform: 'CodeChef',
+    difficulty: 'Any',
+    status: 'completed',
+    startDate: new Date(Date.now() - 30 * 86400000).toISOString(),
+    endDate: new Date(Date.now() - 2 * 86400000).toISOString(),
+    streakGoal: false,
+  },
+];
+
+const mockAchievements = [
+  { id: 'a1', title: 'Consistency Champ', description: 'Maintain a 7-day streak', unlocked: true, icon: '🔥' },
+  { id: 'a2', title: 'Medium Mastery', description: 'Finish 10 medium problems in a month', unlocked: true, icon: '🧠' },
+  { id: 'a3', title: 'Hardcore', description: 'Complete 5 hard problems in a week', unlocked: false, icon: '💪' },
+  { id: 'a4', title: 'Contest Challenger', description: 'Join two contests this month', unlocked: true, icon: '🏆' },
+];
+
+const buildGoalStats = () => {
+  const total = mockGoals.length;
+  const completed = mockGoals.filter((g) => g.status === 'completed').length;
+  const active = mockGoals.filter((g) => g.status === 'active').length;
+  const paused = mockGoals.filter((g) => g.status === 'paused').length;
+  const completionRate = total ? Math.round((completed / total) * 100) : 0;
+  const streakDays = 6; // placeholder integration with streak model
+
+  return {
+    total,
+    completed,
+    active,
+    paused,
+    completionRate,
+    streakDays,
+  };
+};
+
+const mockGetGoals = () => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        data: {
+          goals: mockGoals,
+          achievements: mockAchievements,
+          stats: buildGoalStats(),
+        },
+      });
+    }, 400);
+  });
+};
+
+const mockCreateGoal = (goal) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newGoal = {
+        id: `g${mockGoals.length + 1}`,
+        progress: 0,
+        status: 'active',
+        startDate: new Date().toISOString(),
+        endDate: goal.timeframe === 'daily'
+          ? new Date(Date.now() + 86400000).toISOString()
+          : goal.timeframe === 'weekly'
+            ? new Date(Date.now() + 7 * 86400000).toISOString()
+            : new Date(Date.now() + 30 * 86400000).toISOString(),
+        ...goal,
+      };
+      mockGoals.push(newGoal);
+      resolve({ data: { goal: newGoal, stats: buildGoalStats() } });
+    }, 300);
+  });
+};
+
+const mockUpdateGoal = (id, updates) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const goal = mockGoals.find((g) => g.id === id);
+      if (!goal) {
+        reject({ response: { data: { message: 'Goal not found' } } });
+        return;
+      }
+      Object.entries(updates || {}).forEach(([key, value]) => {
+        if (typeof value !== 'undefined') {
+          goal[key] = value;
+        }
+      });
+      if (goal.progress >= 100) {
+        goal.progress = 100;
+        goal.status = 'completed';
+      }
+      resolve({ data: { goal, stats: buildGoalStats() } });
+    }, 300);
+  });
+};
+
+const mockDeleteGoal = (id) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const index = mockGoals.findIndex((g) => g.id === id);
+      if (index > -1) {
+        mockGoals.splice(index, 1);
+      }
+      resolve({ data: { success: true, stats: buildGoalStats() } });
+    }, 200);
+  });
+};
+
+export const goalsAPI = {
+  getGoals: async () => {
+    try {
+      const response = await api.get('/goals');
+      return response;
+    } catch (error) {
+      console.log('Using mock goals data');
+      return mockGetGoals();
+    }
+  },
+  createGoal: async (goal) => {
+    try {
+      const response = await api.post('/goals', goal);
+      return response;
+    } catch (error) {
+      console.log('Using mock create goal');
+      return mockCreateGoal(goal);
+    }
+  },
+  updateGoal: async (id, updates) => {
+    try {
+      const response = await api.put(`/goals/${id}`, updates);
+      return response;
+    } catch (error) {
+      console.log('Using mock update goal');
+      return mockUpdateGoal(id, updates);
+    }
+  },
+  deleteGoal: async (id) => {
+    try {
+      const response = await api.delete(`/goals/${id}`);
+      return response;
+    } catch (error) {
+      console.log('Using mock delete goal');
+      return mockDeleteGoal(id);
+    }
+  },
+};
+
 // Mock platform connections data
 const mockPlatformConnections = [
   {

@@ -504,11 +504,38 @@ select:focus-visible,
   margin: 50px auto;
 }
 
-.today-activity h2 {
-  text-align: center;
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 26px;
+}
+
+.activity-header h2 {
+  text-align: center;
   font-size: 1.9em;
   color: var(--theme-primary);
+  margin: 0;
+}
+
+.activity-toggle-btn {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid var(--theme-primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2em;
+  color: var(--theme-primary);
+  transition: all 0.2s ease;
+}
+
+.activity-toggle-btn:hover {
+  background: var(--theme-primary);
+  color: white;
 }
 
 .activity-list {
@@ -605,6 +632,10 @@ select:focus-visible,
    RESPONSIVE FIXES
 ========================= */
 @media (max-width: 768px) {
+  .app {
+    padding: 10px;
+  }
+
   .app h1 {
     font-size: 2.4em;
   }
@@ -626,6 +657,7 @@ select:focus-visible,
 
   .platforms-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .card-header {
@@ -643,6 +675,35 @@ select:focus-visible,
     left: 16px;
     padding: 7px 12px;
     font-size: 0.9em;
+  }
+
+  /* Mobile-specific button improvements */
+  .nav-btn {
+    padding: 16px 24px;
+    font-size: 1.1em;
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .activity-toggle-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4em;
+  }
+
+  .today-activity {
+    padding: 24px;
+    margin: 30px auto;
+  }
+
+  .activity-list {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .activity-item {
+    padding: 20px;
+    font-size: 1.2em;
   }
 }
 /* =========================

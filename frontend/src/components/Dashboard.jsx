@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import "../App.css";
 import CircularProgress from "./CircularProgress";
 
 import DemoPage from "./DemoPage";
-import AnalyticsDashboard from "./AnalyticsDashboard";
-import BadgeCollection from "./BadgeCollection";
+const AnalyticsDashboard = lazy(() => import("./AnalyticsDashboard"));
+const BadgeCollection = lazy(() => import("./BadgeCollection"));
 import UsernameInputs from "./UsernameInputs";
 import PlatformCard from "./PlatformCard";
+import LoadingFallback from "./LoadingFallback";
 import { useGrindMapData } from "../hooks/useGrindMapData";
 import { PLATFORMS, OVERALL_GOAL } from "../utils/platforms";
 
@@ -15,6 +16,7 @@ function Dashboard() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [activityCollapsed, setActivityCollapsed] = useState(false);
 
   const {
     usernames,
@@ -45,14 +47,18 @@ function Dashboard() {
           <button onClick={() => setShowAnalytics(false)} className="back-btn">
             ← Back to Main
           </button>
-          <AnalyticsDashboard platformData={platformData} />
+          <Suspense fallback={<LoadingFallback />}>
+            <AnalyticsDashboard platformData={platformData} />
+          </Suspense>
         </>
       ) : showBadges ? (
         <>
           <button onClick={() => setShowBadges(false)} className="back-btn">
             ← Back to Main
           </button>
-          <BadgeCollection />
+          <Suspense fallback={<LoadingFallback />}>
+            <BadgeCollection />
+          </Suspense>
         </>
       ) : (
         <>
@@ -138,38 +144,49 @@ function Dashboard() {
 
           {/* Today's Activity */}
           <div className="today-activity">
-            <h2>
-              Today's Activity (
-              {today.toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-              )
-            </h2>
-            <div className="activity-list">
-              {PLATFORMS.map((plat) => {
-                const submittedToday = hasSubmittedToday(plat.key);
-                const hasData =
-                  platformData[plat.key] && !platformData[plat.key].error;
-
-                return (
-                  <div
-                    key={plat.key}
-                    className={`activity-item ${submittedToday ? "done" : hasData ? "active-no-sub" : "missed"}`}
-                  >
-                    <span>{plat.name}</span>
-                    <span>
-                      {submittedToday
-                        ? "✅ Coded Today"
-                        : hasData
-                          ? "✅ Active (No submission today)"
-                          : "❌ No Data"}
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="activity-header">
+              <h2>
+                Today's Activity (
+                {today.toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                )
+              </h2>
+              <button
+                className="activity-toggle-btn"
+                onClick={() => setActivityCollapsed(!activityCollapsed)}
+                aria-label={activityCollapsed ? "Expand Today's Activity" : "Collapse Today's Activity"}
+              >
+                {activityCollapsed ? "▼" : "▲"}
+              </button>
             </div>
+            {!activityCollapsed && (
+              <div className="activity-list">
+                {PLATFORMS.map((plat) => {
+                  const submittedToday = hasSubmittedToday(plat.key);
+                  const hasData =
+                    platformData[plat.key] && !platformData[plat.key].error;
+
+                  return (
+                    <div
+                      key={plat.key}
+                      className={`activity-item ${submittedToday ? "done" : hasData ? "active-no-sub" : "missed"}`}
+                    >
+                      <span>{plat.name}</span>
+                      <span>
+                        {submittedToday
+                          ? "✅ Coded Today"
+                          : hasData
+                            ? "✅ Active (No submission today)"
+                            : "❌ No Data"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
