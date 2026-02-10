@@ -176,26 +176,24 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [currentTheme, setCurrentTheme] = useState('navyOrange');
-  const [customColors, setCustomColors] = useState({});
-
-  // Load theme from localStorage on mount
-  useEffect(() => {
+  // Load theme from localStorage on initialization
+  const [currentTheme, setCurrentTheme] = useState(() => {
     const savedTheme = localStorage.getItem('grindmap-theme');
+    return (savedTheme && themes[savedTheme]) ? savedTheme : 'navyOrange';
+  });
+
+  // Load custom colors from localStorage on initialization
+  const [customColors, setCustomColors] = useState(() => {
     const savedCustomColors = localStorage.getItem('grindmap-custom-colors');
-
-    if (savedTheme && themes[savedTheme]) {
-      setCurrentTheme(savedTheme);
-    }
-
     if (savedCustomColors) {
       try {
-        setCustomColors(JSON.parse(savedCustomColors));
+        return JSON.parse(savedCustomColors);
       } catch (error) {
         console.error('Failed to parse saved custom colors:', error);
       }
     }
-  }, []);
+    return {};
+  });
 
   // Save theme to localStorage when it changes
   useEffect(() => {
@@ -235,19 +233,6 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [currentTheme, customColors]);
 
-  const switchTheme = (themeName) => {
-    if (themes[themeName]) {
-      setCurrentTheme(themeName);
-    }
-  };
-
-  const updateCustomColor = (colorKey, colorValue) => {
-    setCustomColors(prev => ({
-      ...prev,
-      [colorKey]: colorValue
-    }));
-  };
-
   const resetCustomColors = () => {
     setCustomColors({});
   };
@@ -260,6 +245,19 @@ export const ThemeProvider = ({ children }) => {
         ...customColors
       }
     };
+  };
+
+  const switchTheme = (themeName) => {
+    if (themes[themeName]) {
+      setCurrentTheme(themeName);
+    }
+  };
+
+  const updateCustomColor = (colorKey, colorValue) => {
+    setCustomColors(prev => ({
+      ...prev,
+      [colorKey]: colorValue
+    }));
   };
 
   const value = {
