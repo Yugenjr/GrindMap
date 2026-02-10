@@ -1,508 +1,212 @@
-import { createErrorResponse, createSuccessResponse, ERROR_CODES } from '../utils/standardResponse.js';
-import { scrapeLeetCode } from './scraping/leetcode.scraper.js';
-import { fetchCodeforcesStats } from './scraping/codeforces.scraper.js';
-import { fetchCodeChefStats } from './scraping/codechef.scraper.js';
-import { fetchAtCoderStats } from './scraping/atcoder.scraper.js';
-import { scrapeGitHub } from './scraping/github.scraper.js';
-import { fetchSkillRackStats } from './scraping/skillrack.scraper.js';
-import { scrapeHackerEarth } from './scraping/hackerearth.scraper.js';
-import { normalizeCodeforces } from './normalization/codeforces.normalizer.js';
-import { normalizeCodeChef } from './normalization/codechef.normalizer.js';
-import { normalizeLeetCode } from './normalization/leetcode.normalizer.js';
-import { PLATFORMS, MESSAGES } from '../constants/app.constants.js';
-import { AppError, ERROR_CODES } from '../utils/appError.js';
-import APICache from '../utils/apiCache.js';
-import config from '../config/env.js';
-import DataChangeEmitter from '../utils/dataChangeEmitter.js';
-import NotificationService from './notification.service.js';
-import Logger from '../utils/logger.js';
-import { asyncWrapper } from '../utils/asyncWrapper.js';
+// Mock data for platform credentials storage
+// In production, this would be stored in a secure database with encryption
+const platformConnections = new Map();
 
 /**
- * Platform scraping service - handles all platform data fetching
- * NO DIRECT SERVICE DEPENDENCIES - uses DI container
+ * Get all platforms connected by a user
  */
-class PlatformService {
-  constructor(container = null) {
-    this.container = container;
+export const getUserPlatforms = async (userId) => {
+  if (!platformConnections.has(userId)) {
+    return [];
+  }
+  return Array.from(platformConnections.get(userId).values());
+};
+
+/**
+ * Connect a platform account
+ */
+export const connectPlatform = async (userId, platformId, credentials) => {
+  if (!credentials.username) {
+    throw new Error('Username is required');
   }
 
-  /**
-   * Fetch user data from LeetCode with caching and real-time updates
-   */
-  async fetchLeetCodeData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.LEETCODE}:${username}`;
-
-    try {
-      // Use advanced cache manager
-      const cached = await AdvancedCacheManager.get(cacheKey);
-      if (cached) {
-        return { ...cached, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for LeetCode:', cacheError.message);
-    const cacheKey = APICache.platformKey('leetcode', username);
-    
-    // Check cache first
-    const cached = APICache.get(cacheKey);
-    if (cached) {
-      return { ...cached, fromCache: true };
-    }
-
-    try {
-      const scraperResult = await scrapeLeetCode(username);
-      const normalizedData = normalizeLeetCode({ username, data: scraperResult.data });
-      const result = {
-        platform: PLATFORMS.LEETCODE,
-        username,
-        ...normalizedData,
-        fromCache: scraperResult.fromCache,
-        fromFallback: scraperResult.fromFallback
-      };
-      
-      // Only cache if not from fallback
-      if (!scraperResult.fromFallback) {
-        try {
-          await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-        } catch (cacheError) {
-          Logger.warn('Cache write failed for LeetCode', { error: cacheError.message, username });
-        }
-      }
-
-      // Emit real-time update
-      
-      // Cache for 15 minutes
-      APICache.set(cacheKey, result, 900);
-      
-      if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate(PLATFORMS.LEETCODE, username, result, userId);
-        } catch (emitError) {
-          Logger.warn('Real-time update failed for LeetCode', { error: emitError.message, username, userId });
-        }
-      }
-
-      return result;
-    } catch (error) {
-      throw createErrorResponse(
-        `Failed to fetch LeetCode data: ${error.message}`,
-        ERROR_CODES.SCRAPING_FAILED,
-        500
-      );
-    }
+  const platformConfig = getPlatformConfig(platformId);
+  if (!platformConfig) {
+    throw new Error(`Platform ${platformId} is not supported`);
   }
 
-  async fetchCodeforcesData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.CODEFORCES}:${username}`;
-
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for Codeforces:', cacheError.message);
-    const cacheKey = APICache.platformKey('codeforces', username);
-    
-    const cached = APICache.get(cacheKey);
-    if (cached) {
-      return { ...cached, fromCache: true };
-    }
-
-    try {
-      const rawData = await fetchCodeforcesStats(username);
-      const normalizedData = normalizeCodeforces({ ...rawData, username });
-
-      const result = {
-        platform: PLATFORMS.CODEFORCES,
-        username,
-        ...normalizedData,
-      };
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-      } catch (cacheError) {
-        console.warn('Cache write failed for Codeforces:', cacheError.message);
-      }
-
-      
-      APICache.set(cacheKey, result, 900);
-      
-      if (userId) {
-        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.CODEFORCES, username, result, userId);
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(
-        `${MESSAGES.SCRAPING_FAILED}: Codeforces - ${error.message}`,
-        500,
-        ERROR_CODES.SCRAPING_ERROR
-      );
-    }
+  if (platformConfig.requiresApiKey && !credentials.apiKey) {
+    throw new Error('API Key is required for this platform');
   }
 
-  async fetchCodeChefData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.CODECHEF}:${username}`;
-
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for CodeChef:', cacheError.message);
-    const cacheKey = APICache.platformKey('codechef', username);
-    
-    const cached = APICache.get(cacheKey);
-    if (cached) {
-      return { ...cached, fromCache: true };
-    }
-
-    try {
-      const rawData = await fetchCodeChefStats(username);
-      const normalizedData = normalizeCodeChef({ ...rawData, username });
-
-      const result = {
-        platform: PLATFORMS.CODECHEF,
-        username,
-        ...normalizedData,
-      };
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-      } catch (cacheError) {
-        console.warn('Cache write failed for CodeChef:', cacheError.message);
-      }
-
-      
-      APICache.set(cacheKey, result, 900);
-      
-      if (userId) {
-        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.CODECHEF, username, result, userId);
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(
-        `${MESSAGES.SCRAPING_FAILED}: CodeChef - ${error.message}`,
-        500,
-        ERROR_CODES.SCRAPING_ERROR
-      );
-    }
+  if (platformConfig.requiresToken && !credentials.token) {
+    throw new Error('Access Token is required for this platform');
   }
 
-  /**
-   * Fetch user data from AtCoder with caching and real-time updates
-   */
-  async fetchAtCoderData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.ATCODER}:${username}`;
-
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      const data = JSON.parse(cached);
-      return { ...data, fromCache: true };
-    }
-
-    try {
-      const data = await fetchAtCoderStats(username);
-      const result = {
-        platform: PLATFORMS.ATCODER,
-        username,
-        ...data,
-      };
-
-      await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-
-      if (userId) {
-        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.ATCODER, username, result, userId);
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(`${MESSAGES.SCRAPING_FAILED}: AtCoder`, 500, ERROR_CODES.SCRAPING_ERROR);
-    }
+  // Validate credentials by testing connection
+  const testResult = await testConnection(platformId, credentials);
+  if (!testResult.success) {
+    throw new Error('Invalid credentials. Connection test failed.');
   }
 
-  /**
-   * Fetch user data from HackerEarth with caching and real-time updates
-   */
-  async fetchHackerEarthData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.HACKEREARTH}:${username}`;
+  // Store the connection
+  const userConnections = platformConnections.get(userId) || new Map();
+  const platform = {
+    id: `${userId}_${platformId}`,
+    platformId,
+    name: platformConfig.name,
+    username: credentials.username,
+    connected: true,
+    status: 'connected',
+    lastSync: new Date().toISOString(),
+    problemsSynced: 0,
+    lastSyncError: null,
+    syncing: false,
+    requiresApiKey: platformConfig.requiresApiKey,
+    requiresToken: platformConfig.requiresToken,
+    settings: {
+      syncProblems: true,
+      syncSubmissions: true,
+      syncContests: false,
+      autoSync: true,
+    },
+  };
 
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for HackerEarth:', cacheError.message);
-    }
+  userConnections.set(platformId, platform);
+  platformConnections.set(userId, userConnections);
 
-    try {
-      const rawData = await scrapeHackerEarth(username);
-      const normalizedData = normalizeHackerEarth({ ...rawData.data, username });
+  return platform;
+};
 
-      const result = {
-        platform: PLATFORMS.HACKEREARTH,
-        username,
-        ...normalizedData,
-      };
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-      } catch (cacheError) {
-        console.warn('Cache write failed for HackerEarth:', cacheError.message);
-      }
-
-      if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate(PLATFORMS.HACKEREARTH, username, result, userId);
-        } catch (emitError) {
-          console.warn('Real-time update failed for HackerEarth:', emitError.message);
-        }
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(
-        `${MESSAGES.SCRAPING_FAILED}: HackerEarth - ${error.message}`,
-        500,
-        ERROR_CODES.SCRAPING_ERROR
-      );
-    }
+/**
+ * Disconnect a platform
+ */
+export const disconnectPlatform = async (userId, platformId) => {
+  const userConnections = platformConnections.get(userId);
+  if (!userConnections || !userConnections.has(platformId)) {
+    throw new Error('Platform not connected');
   }
 
-  /**
-   * Fetch user data from GitHub with caching and real-time updates
-   */
-  async fetchGitHubData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.GITHUB}:${username}`;
+  userConnections.delete(platformId);
+  if (userConnections.size === 0) {
+    platformConnections.delete(userId);
+  }
+};
 
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      const data = JSON.parse(cached);
-      return { ...data, fromCache: true };
-    }
+/**
+ * Test connection to a platform
+ */
+export const testConnection = async (platformId, credentials) => {
+  // Simulate API call to platform
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const success = credentials.username && credentials.username.length > 0;
+      resolve({
+        success,
+        message: success
+          ? `Successfully connected to ${getPlatformName(platformId)}`
+          : 'Connection failed. Please check your credentials.',
+      });
+    }, 1000);
+  });
+};
 
-    try {
-      const data = await scrapeGitHub(username);
-      const result = {
-        platform: PLATFORMS.GITHUB,
-        username,
-        ...data,
-      };
-
-      await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-
-      if (userId) {
-        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.GITHUB, username, result, userId);
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(`${MESSAGES.SCRAPING_FAILED}: GitHub`, 500, ERROR_CODES.SCRAPING_ERROR);
-    }
+/**
+ * Sync data from a platform
+ */
+export const syncPlatform = async (userId, platformId) => {
+  const userConnections = platformConnections.get(userId);
+  if (!userConnections || !userConnections.has(platformId)) {
+    throw new Error('Platform not connected');
   }
 
-  /**
-   * Fetch user data from SkillRack with caching and real-time updates
-   */
-  async fetchSkillRackData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.SKILLRACK}:${username}`;
+  const platform = userConnections.get(platformId);
 
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      const data = JSON.parse(cached);
-      return { ...data, fromCache: true };
-    }
+  // Simulate sync
+  platform.syncing = true;
+  
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Simulate syncing some problems
+      const syncedCount = Math.floor(Math.random() * 20) + 5;
+      platform.problemsSynced = (platform.problemsSynced || 0) + syncedCount;
+      platform.lastSync = new Date().toISOString();
+      platform.lastSyncError = null;
+      platform.syncing = false;
 
-    try {
-      const data = await fetchSkillRackStats(username);
-      const result = {
-        platform: PLATFORMS.SKILLRACK,
-        username,
-        ...data,
-      };
+      resolve({
+        synced: syncedCount,
+        total: platform.problemsSynced,
+      });
+    }, 2000);
+  });
+};
 
-      await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-
-      if (userId) {
-        DataChangeEmitter.emitPlatformUpdate(PLATFORMS.SKILLRACK, username, result, userId);
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(`${MESSAGES.SCRAPING_FAILED}: SkillRack`, 500, ERROR_CODES.SCRAPING_ERROR);
-    }
+/**
+ * Update platform sync settings
+ */
+export const updateSettings = async (userId, platformId, settings) => {
+  const userConnections = platformConnections.get(userId);
+  if (!userConnections || !userConnections.has(platformId)) {
+    throw new Error('Platform not connected');
   }
 
-  /**
-   * Fetch user data from HackerRank with caching and real-time updates
-   */
-  async fetchHackerRankData(username, userId = null) {
-    const cacheKey = `platform:${PLATFORMS.HACKERRANK || 'hackerrank'}:${username}`;
+  const platform = userConnections.get(platformId);
+  platform.settings = {
+    ...platform.settings,
+    ...settings,
+  };
 
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        const data = JSON.parse(cached);
-        return { ...data, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for HackerRank:', cacheError.message);
-    }
+  return platform;
+};
 
-    try {
-      const rawData = await scrapeHackerRank(username);
-      // normalizeHackerRank might be needed if rawData isn't perfect, but let's assume rawData is what we need or check import.
-      // Line 10 imports normalizeHackerRank.
-      const normalizedData = normalizeHackerRank({ ...rawData, username });
-
-      const result = {
-        platform: PLATFORMS.HACKERRANK || 'hackerrank',
-        username,
-        ...normalizedData,
-      };
-
-      try {
-        await redis.set(cacheKey, JSON.stringify(result), config.CACHE_PLATFORM_TTL);
-      } catch (cacheError) {
-        console.warn('Cache write failed for HackerRank:', cacheError.message);
-      }
-
-      if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate(
-            PLATFORMS.HACKERRANK || 'hackerrank',
-            username,
-            result,
-            userId
-          );
-        } catch (emitError) {
-          console.warn('Real-time update failed for HackerRank:', emitError.message);
-        }
-      }
-
-      return result;
-    } catch (error) {
-      throw new AppError(
-        `${MESSAGES.SCRAPING_FAILED}: HackerRank - ${error.message}`,
-        500,
-        ERROR_CODES.SCRAPING_ERROR
-      );
-    }
+/**
+ * Get platform status
+ */
+export const getPlatformStatus = async (userId, platformId) => {
+  const userConnections = platformConnections.get(userId);
+  if (!userConnections || !userConnections.has(platformId)) {
+    throw new Error('Platform not connected');
   }
 
-  /**
-   * Get supported platforms list
-   */
-  getSupportedPlatforms() {
-    return Object.values(PLATFORMS);
-  }
+  const platform = userConnections.get(platformId);
+  return {
+    platform: platform.platformId,
+    connected: platform.connected,
+    lastSync: platform.lastSync,
+    status: platform.status,
+    healthStatus: getHealthStatus(platform),
+  };
+};
 
-  /**
-   * Invalidate cache for user
-   */
-  async invalidateUserCache(username) {
-    const platforms = ['leetcode', 'codeforces', 'codechef', 'atcoder', 'github', 'skillrack'];
-    platforms.forEach(platform => {
-      APICache.delete(APICache.platformKey(platform, username));
-    });
+/**
+ * Helper function to get platform configuration
+ */
+function getPlatformConfig(platformId) {
+  const platforms = {
+    leetcode: { name: 'LeetCode', requiresApiKey: false, requiresToken: false },
+    codeforces: { name: 'Codeforces', requiresApiKey: true, requiresToken: false },
+    hackerrank: { name: 'HackerRank', requiresApiKey: true, requiresToken: false },
+    codechef: { name: 'CodeChef', requiresApiKey: false, requiresToken: false },
+    github: { name: 'GitHub', requiresApiKey: false, requiresToken: true },
+    atcoder: { name: 'AtCoder', requiresApiKey: false, requiresToken: false },
+    topcoder: { name: 'TopCoder', requiresApiKey: true, requiresToken: false },
+  };
 
-    await Promise.all(promises);
-  }
-
-  /**
-   * Get activity service (lazy loaded)
-   */
-  getActivityService() {
-    return this.container?.get('activityService');
-  }
-
-  /**
-   * Check for progress and send notifications
-   */
-  async checkProgressAndNotify(userId, platform, newData, cachedData) {
-    if (!cachedData || !newData.data) return;
-
-    const oldCount = cachedData.data?.problemsSolved || cachedData.data?.totalSolved || 0;
-    const newCount = newData.data?.problemsSolved || newData.data?.totalSolved || 0;
-
-    if (newCount > oldCount) {
-      const problemsGained = newCount - oldCount;
-      await NotificationService.createNotification(
-        userId,
-        'friend_progress',
-        `Progress on ${platform}!`,
-        `You solved ${problemsGained} new problem${problemsGained > 1 ? 's' : ''} on ${platform}. Total: ${newCount}`,
-        {
-          platform,
-          problemsGained,
-          totalProblems: newCount,
-          username: newData.username,
-        }
-      );
-    }
-  }
-
-  /**
-   * Fetch user data from HackerRank with caching
-   */
-  async fetchHackerRankData(username, userId = null) {
-    const cacheKey = `platform:hackerrank:${username}`;
-
-    try {
-      const cached = await AdvancedCacheManager.get(cacheKey);
-      if (cached) {
-        return { ...cached, fromCache: true };
-      }
-    } catch (cacheError) {
-      console.warn('Cache read failed for HackerRank:', cacheError.message);
-    }
-
-    try {
-      const rawData = await scrapeHackerRank(username);
-      const normalizedData = normalizeHackerRank(rawData);
-
-      const result = {
-        platform: 'hackerrank',
-        username,
-        ...normalizedData,
-      };
-
-      try {
-        await AdvancedCacheManager.set(cacheKey, result, config.CACHE_PLATFORM_TTL, {
-          tags: ['platform', 'hackerrank', username],
-        });
-      } catch (cacheError) {
-        console.warn('Cache write failed for HackerRank:', cacheError.message);
-      }
-
-      if (userId) {
-        try {
-          DataChangeEmitter.emitPlatformUpdate('hackerrank', username, result, userId);
-        } catch (emitError) {
-          console.warn('Real-time update failed for HackerRank:', emitError.message);
-        }
-      }
-
-      return result;
-    } catch (error) {
-      // Propagate specific errors like "User not found"
-      if (error.message && error.message.includes('User not found')) {
-        throw new AppError(error.message, 404, ERROR_CODES.NOT_FOUND);
-      }
-      throw new AppError(
-        `${MESSAGES.SCRAPING_FAILED}: HackerRank - ${error.message}`,
-        500,
-        ERROR_CODES.SCRAPING_ERROR
-      );
-    }
-  }
+  return platforms[platformId.toLowerCase()];
 }
 
-export default PlatformService;
+/**
+ * Helper function to get platform name
+ */
+function getPlatformName(platformId) {
+  const config = getPlatformConfig(platformId);
+  return config ? config.name : 'Platform';
+}
+
+/**
+ * Helper function to get health status
+ */
+function getHealthStatus(platform) {
+  if (!platform.connected) return 'Not Connected';
+  if (platform.lastSyncError) return 'Error';
+  if (platform.syncing) return 'Syncing...';
+  if (!platform.lastSync) return 'Never Synced';
+
+  const lastSync = new Date(platform.lastSync);
+  const hoursSinceSync = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
+
+  if (hoursSinceSync < 1) return 'Healthy';
+  if (hoursSinceSync < 24) return 'Good';
+  return 'Outdated';
+}

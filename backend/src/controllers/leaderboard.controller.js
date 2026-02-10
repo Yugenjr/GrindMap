@@ -1,62 +1,30 @@
-import User from "../models/user.model.js";
-import Activity from "../models/activity.model.js";
-import IntegrityService from "../services/integrity.service.js";
+import LeaderboardService from "../services/leaderboard.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendSuccess } from "../utils/response.helper.js";
 
-export const getLeaderboard = async (req, res) => {
-  const { type = 'global', limit = 50 } = req.query;
-  const userId = req.user.id;
+class LeaderboardController {
+  /**
+   * Get global leaderboard
+   * GET /api/leaderboard/global
+   */
+  getGlobalLeaderboard = asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
-  let users;
+    const leaderboard = await LeaderboardService.getGlobalLeaderboard(page, limit);
+    const userPercentile = await LeaderboardService.getUserPercentile(req.user.id);
 
-  if (type === 'friends') {
-    const user = await User.findById(userId).populate('friends');
-    const friendIds = user.friends.map(f => f._id);
-    friendIds.push(userId); // include self
-
-    users = await User.find({ 
-      _id: { $in: friendIds }, 
-      isPublic: true,
-      shadowBanned: { $ne: true } // Exclude shadow banned users
-    })
-      .select('name username totalScore')
-      .sort({ totalScore: -1 })
-      .limit(parseInt(limit));
-  } else {
-    users = await User.find({ 
-      isPublic: true,
-      shadowBanned: { $ne: true } // Exclude shadow banned users
-    })
-      .select('name username totalScore')
-      .sort({ totalScore: -1 })
-      .limit(parseInt(limit));
-  }
-
-  res.json(users);
-};
-
-export const getUserRank = async (req, res) => {
-  const userId = req.user.id;
-
-  const user = await User.findById(userId);
-  if (!user.isPublic) {
-    return res.json({ rank: null, message: "User profile is private" });
-  }
-
-  // Check if user is shadow banned
-  if (user.shadowBanned) {
-    return res.json({ 
-      rank: null, 
-      totalScore: user.totalScore,
-      message: "Your account is under review" 
-    });
-  }
-
-  const higherScoreCount = await User.countDocuments({ 
-    totalScore: { $gt: user.totalScore }, 
-    isPublic: true,
-    shadowBanned: { $ne: true } // Only count non-banned users
+    sendSuccess(res, { leaderboard, userPercentile }, "Global leaderboard retrieved");
   });
-  const rank = higherScoreCount + 1;
 
-  res.json({ rank, totalScore: user.totalScore });
-};
+  /**
+   * Get friend-only leaderboard
+   * GET /api/leaderboard/friends
+   */
+  getFriendsLeaderboard = asyncHandler(async (req, res) => {
+    const leaderboard = await LeaderboardService.getFriendsLeaderboard(req.user.id);
+    sendSuccess(res, leaderboard, "Friends leaderboard retrieved");
+  });
+}
+
+export default new LeaderboardController();
