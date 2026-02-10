@@ -15,6 +15,9 @@ import grindRoomRoutes from './grindRoom.routes.js';
 import tournamentRoutes from './tournament.routes.js';
 import duelRoutes from './duel.routes.js';
 import mentorshipRoutes from './mentorship.routes.js';
+import socialRoutes from './social.routes.js';
+import settingsRoutes from './settings.routes.js';
+import invoicesRoutes from './invoices.routes.js';
 import { HTTP_STATUS } from '../constants/app.constants.js';
 
 export const setupRoutes = (app) => {
@@ -36,6 +39,7 @@ export const setupRoutes = (app) => {
   app.use('/api/tournaments', tournamentRoutes);
   app.use('/api/duels', duelRoutes);
   app.use('/api/mentorship', mentorshipRoutes);
+  app.use('/api/social', socialRoutes);
 
   // API documentation endpoint
   app.get('/api', (req, res) => {
@@ -58,6 +62,9 @@ export const setupRoutes = (app) => {
         tournaments: '/api/tournaments',
         duels: '/api/duels',
         mentorship: '/api/mentorship',
+        social: '/api/social',
+        settings: '/api/settings',
+        invoices: '/api/invoices',
         health: '/health',
         database: '/api/database',
       },
