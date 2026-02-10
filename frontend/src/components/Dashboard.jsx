@@ -12,6 +12,63 @@ import LoadingFallback from "./LoadingFallback";
 import { useGrindMapData } from "../hooks/useGrindMapData";
 import { PLATFORMS, OVERALL_GOAL } from "../utils/platforms";
 
+// Progress History Component
+const ProgressHistory = ({ platformData, totalSolved }) => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5001/api/user/progress-history', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load progress history:', error);
+    }
+    setLoading(false);
+  };
+
+  React.useEffect(() => {
+    loadHistory();
+  }, []);
+
+  return (
+    <div className={styles.progressHistory}>
+      <h3>Progress History</h3>
+      {loading ? (
+        <p>Loading history...</p>
+      ) : (
+        <div className={styles.historyStats}>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>Total Days Tracked</span>
+            <span className={styles.statValue}>{history.length}</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>Current Streak</span>
+            <span className={styles.statValue}>
+              {history.filter(h => h.submittedToday).length > 0 ? 'Active' : '0'}
+            </span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>Best Streak</span>
+            <span className={styles.statValue}>
+              {Math.max(...history.map(h => h.data?.solved || 0), 0)}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function Dashboard() {
   const [showDemo, setShowDemo] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -116,6 +173,9 @@ function Dashboard() {
               />
             ))}
           </div>
+
+          {/* Progress History */}
+          <ProgressHistory platformData={platformData} totalSolved={totalSolved} />
 
           {/* Today's Activity */}
           <div className="today-activity">
