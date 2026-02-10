@@ -2,7 +2,7 @@ import React from 'react';
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
-const CircularProgress = ({ percentage, solved, goal, color, size = 'medium' }) => {
+const CircularProgress = ({ percentage, solved, goal, color, size = 'medium', tooltip }) => {
   const sizes = {
     small: 100,
     medium: 150,
@@ -19,7 +19,7 @@ const CircularProgress = ({ percentage, solved, goal, color, size = 'medium' }) 
   const progressColor = color || 'var(--theme-progress)';
 
   return (
-    <div style={{ width: `${width}px`, height: `${width}px`, margin: '20px auto' }}>
+    <div style={{ width: `${width}px`, height: `${width}px`, margin: '20px auto' }} title={tooltip}>
       <CircularProgressbar
         value={calculatedPercentage}
         text={`${calculatedPercentage}%`}

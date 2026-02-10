@@ -277,18 +277,18 @@ class AnalyticsService {
     today.setHours(0, 0, 0, 0);
 
     // Upsert today's activity
-    await ActivityLog.findOneAndUpdate(
+    const activity = await ActivityLog.findOneAndUpdate(
       { userId, platform, action, date: today },
       { $inc: { count }, $set: { difficulty, metadata } },
       { upsert: true, new: true }
     );
 
-    // Sync active sprints for the user
+    // Trigger achievement engine
     try {
-      const SprintService = (await import('./sprint.service.js')).default;
-      await SprintService.syncSprintProgress(userId);
-    } catch (error) {
-      Logger.error("Failed to sync sprint progress after activity logging", { error: error.message, userId });
+      const AchievementService = (await import('./achievement.service.js')).default;
+      await AchievementService.processActivity(userId, activity);
+    } catch (err) {
+      Logger.error("Failed to process achievements", { userId, error: err.message });
     }
   }
 }

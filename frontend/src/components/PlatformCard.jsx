@@ -36,6 +36,7 @@ const PlatformCard = ({
               percentage={percentage}
               color={platform.color}
               size={isExpanded ? "large" : "medium"}
+              tooltip="No data"
             />
           </div>
         </div>
@@ -60,6 +61,7 @@ const PlatformCard = ({
               percentage={0}
               color={platform.color}
               size={isExpanded ? "large" : "medium"}
+              tooltip={data.error || "Error"}
             />
           </div>
         </div>
@@ -74,6 +76,12 @@ const PlatformCard = ({
       onToggle(platform.key);
     }
   };
+
+  const tooltipText = data.totalSolved !== undefined
+    ? `Solved: ${data.totalSolved} / ${data.totalQuestions || "Unknown"}`
+    : data.solved !== undefined
+      ? `Solved: ${data.solved}`
+      : `Percentage: ${percentage}%`;
 
   return (
     <div
@@ -94,6 +102,7 @@ const PlatformCard = ({
             percentage={percentage}
             color={platform.color}
             size={isExpanded ? "large" : "medium"}
+            tooltip={tooltipText}
           />
         </div>
       </div>
