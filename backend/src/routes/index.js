@@ -8,6 +8,7 @@ import securityRoutes from './security.routes.js';
 import databaseRoutes from './database.routes.js';
 import websocketRoutes from './websocket.routes.js';
 import quotaRoutes from './quota.routes.js';
+import ideActivityRoutes from './ideActivity.routes.js';
 import fileUploadRoutes from './fileUpload.routes.js';
 import jobMonitoringRoutes from './jobMonitoring.routes.js';
 import monitoringRoutes from './monitoring.routes.js';
@@ -57,6 +58,7 @@ export const setupRoutes = (app) => {
         websocket: '/ws',
         websocketAPI: '/api/websocket',
         quota: '/api/quota',
+        ideActivity: '/api/ide-activity',
         jobs: '/api/jobs',
         monitoring: '/api/monitoring',
         tournaments: '/api/tournaments',

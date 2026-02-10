@@ -4,6 +4,7 @@ import WebSocketManager from '../utils/websocketManager.js';
 import MessageQueue from '../utils/messageQueue.js';
 import { verifyJWT } from '../middlewares/jwtManager.middleware.js';
 import Logger from '../utils/logger.js';
+import IdeActivityController from '../controllers/ideActivity.controller.js';
 
 const router = express.Router();
 
@@ -118,14 +119,14 @@ router.post('/broadcast/:roomId', verifyJWT, (req, res) => {
   try {
     const { roomId } = req.params;
     const { message, type = 'admin_broadcast' } = req.body;
-    
+
     if (!message) {
       return res.status(400).json({
         success: false,
         error: 'message is required'
       });
     }
-    
+
     const broadcastMessage = {
       type,
       content: message,
@@ -133,9 +134,9 @@ router.post('/broadcast/:roomId', verifyJWT, (req, res) => {
       roomId,
       timestamp: new Date().toISOString()
     };
-    
+
     WebSocketManager.broadcastToRoom(roomId, broadcastMessage);
-    
+
     res.json({
       success: true,
       message: 'Broadcast sent'
@@ -148,5 +149,11 @@ router.post('/broadcast/:roomId', verifyJWT, (req, res) => {
     });
   }
 });
+
+/**
+ * IDE Activity Webhook
+ * POST /api/websocket/webhook/ide-activity
+ */
+router.post('/webhook/ide-activity', IdeActivityController.handleWebhook);
 
 export default router;
