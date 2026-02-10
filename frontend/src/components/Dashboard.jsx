@@ -6,6 +6,8 @@ import CircularProgress from "./CircularProgress";
 import DemoPage from "./DemoPage";
 const AnalyticsDashboard = lazy(() => import("./AnalyticsDashboard"));
 const BadgeCollection = lazy(() => import("./BadgeCollection"));
+const GoalList = lazy(() => import("./GoalList"));
+const GoalSetting = lazy(() => import("./GoalSetting"));
 import UsernameInputs from "./UsernameInputs";
 import PlatformCard from "./PlatformCard";
 import LoadingFallback from "./LoadingFallback";
