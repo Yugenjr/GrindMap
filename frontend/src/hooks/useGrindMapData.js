@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PLATFORMS } from "../utils/platforms";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
@@ -9,6 +9,8 @@ export const useGrindMapData = () => {
     codechef: "",
     hackerearth: "",
   });
+  const [userProfile, setUserProfile] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [platformData, setPlatformData] = useState({
     leetcode: null,
@@ -105,6 +107,25 @@ export const useGrindMapData = () => {
   const fetchAll = async () => {
     setLoading(true);
 
+    // Save usernames to backend if authenticated
+    if (isAuthenticated) {
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API_BASE_URL}/api/user/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            platformUsernames: usernames,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save usernames:', error);
+      }
+    }
+
     // Parallel execution for better performance
     const promises = PLATFORMS.map((plat) => fetchPlatformData(plat));
     const results = await Promise.all(promises);
@@ -116,6 +137,28 @@ export const useGrindMapData = () => {
 
     setPlatformData(newData);
     setLoading(false);
+
+    // Save progress to backend if authenticated
+    if (isAuthenticated) {
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API_BASE_URL}/api/user/progress`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            platform: 'all',
+            username: 'combined',
+            data: { totalSolved },
+            submittedToday: PLATFORMS.some(plat => hasSubmittedToday(plat.key)),
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save progress:', error);
+      }
+    }
   };
 
   const getPlatformPercentage = (platKey) => {

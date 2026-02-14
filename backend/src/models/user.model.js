@@ -74,6 +74,29 @@ const userSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // Platform usernames for personalization
+    platformUsernames: {
+      leetcode: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      codeforces: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      codechef: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+      hackerearth: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
     friends: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

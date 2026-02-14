@@ -1,86 +1,87 @@
 import User from "../models/user.model.js";
-import UserBadge from "../models/userBadge.model.js";
+import ProgressHistory from "../models/progressHistory.model.js";
+import { AppError, ERROR_CODES } from "../utils/appError.js";
+import { sendSuccess } from "../utils/response.helper.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { HTTP_STATUS } from "../constants/app.constants.js";
 
-export const updateUserProfile = async (req, res) => {
-  try {
-    const { name, username, email, bio, isPublic } = req.body;
+/**
+ * Update user profile including platform usernames
+ * @route PUT /api/user/profile
+ */
+export const updateUserProfile = asyncHandler(async (req, res) => {
+  const { name, bio, platformUsernames } = req.body;
 
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    // Check if username is taken
-    if (username && username !== user.username) {
-      const existing = await User.findOne({ username });
-      if (existing) {
-        return res.status(400).json({ message: "Username already taken" });
-      }
-    }
-
-    user.name = name || user.name;
-    user.username = username || user.username;
-    user.email = email || user.email;
-    user.bio = bio || user.bio;
-    if (typeof isPublic === 'boolean') user.isPublic = isPublic;
-
-    const updated = await user.save();
-
-    // Get user's badge count
-    const badgeCount = await UserBadge.countDocuments({ user: req.user.id });
-
-    res.json({
-      message: "Profile updated",
-      user: {
-        id: updated._id,
-        name: updated.name,
-        username: updated.username,
-        email: updated.email,
-        bio: updated.bio,
-        totalPoints: updated.totalPoints,
-        badgeCount: badgeCount,
-        totalProblemsSolved: updated.totalProblemsSolved,
-        currentStreak: updated.currentStreak,
-        longestStreak: updated.longestStreak,
-        averageRating: updated.averageRating,
-        fastestSolveTime: updated.fastestSolveTime,
-        createdAt: updated.createdAt,
-        updatedAt: updated.updatedAt,
+  const user = await User.findByIdAndUpdate(
+    req.user.id,
+    {
+      name,
+      bio,
+      platformUsernames: {
+        leetcode: platformUsernames?.leetcode || "",
+        codeforces: platformUsernames?.codeforces || "",
+        codechef: platformUsernames?.codechef || "",
+        hackerearth: platformUsernames?.hackerearth || "",
       },
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    },
+    { new: true, runValidators: true }
+  ).select('-password');
+
+  if (!user) {
+    throw new AppError("User not found", HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND);
   }
-};
 
-export const getUserProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+  sendSuccess(res, user, "Profile updated successfully");
+});
 
-    // Get user's badge count
-    const badgeCount = await UserBadge.countDocuments({ user: req.user.id });
+/**
+ * Get user profile including platform usernames
+ * @route GET /api/user/profile
+ */
+export const getUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id).select('-password');
 
-    res.json({
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        bio: user.bio,
-        totalPoints: user.totalPoints,
-        badgeCount: badgeCount,
-        totalProblemsSolved: user.totalProblemsSolved,
-        currentStreak: user.currentStreak,
-        longestStreak: user.longestStreak,
-        averageRating: user.averageRating,
-        fastestSolveTime: user.fastestSolveTime,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  if (!user) {
+    throw new AppError("User not found", HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND);
   }
-};
+
+  sendSuccess(res, user, "Profile retrieved successfully");
+});
+
+/**
+ * Get user's progress history
+ * @route GET /api/user/progress-history
+ */
+export const getProgressHistory = asyncHandler(async (req, res) => {
+  const { platform, limit = 30 } = req.query;
+
+  const query = { userId: req.user.id };
+  if (platform) {
+    query.platform = platform;
+  }
+
+  const history = await ProgressHistory.find(query)
+    .sort({ date: -1 })
+    .limit(parseInt(limit));
+
+  sendSuccess(res, history, "Progress history retrieved successfully");
+});
+
+/**
+ * Save daily progress for user
+ * @route POST /api/user/progress
+ */
+export const saveDailyProgress = asyncHandler(async (req, res) => {
+  const { platform, username, data, submittedToday } = req.body;
+
+  const progressEntry = await ProgressHistory.create({
+    userId: req.user.id,
+    date: new Date(),
+    platform,
+    username,
+    data,
+    submittedToday: submittedToday || false,
+  });
+
+  sendSuccess(res, progressEntry, "Progress saved successfully");
+});
