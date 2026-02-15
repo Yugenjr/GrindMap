@@ -4,21 +4,19 @@ import { AppError, ERROR_CODES } from "../utils/appError.js";
 import { sendSuccess } from "../utils/response.helper.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { HTTP_STATUS } from "../constants/app.constants.js";
-import mongoose from "mongoose";
 
 /**
  * Update user profile including platform usernames
  * @route PUT /api/user/profile
  */
 export const updateUserProfile = asyncHandler(async (req, res) => {
-  const { name, bio, platformUsernames, profileVisibility } = req.body;
+  const { name, bio, platformUsernames } = req.body;
 
   const user = await User.findByIdAndUpdate(
     req.user.id,
     {
       name,
       bio,
-      profileVisibility,
       platformUsernames: {
         leetcode: platformUsernames?.leetcode || "",
         codeforces: platformUsernames?.codeforces || "",
@@ -86,70 +84,4 @@ export const saveDailyProgress = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, progressEntry, "Progress saved successfully");
-});
-
-/**
- * Add a friend
- * @route POST /api/user/friends/:friendId
- */
-export const addFriend = asyncHandler(async (req, res) => {
-  const { friendId } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(friendId)) {
-    throw new AppError("Invalid friend ID", HTTP_STATUS.BAD_REQUEST, ERROR_CODES.INVALID_INPUT);
-  }
-
-  if (req.user.id === friendId) {
-    throw new AppError("Cannot add yourself as a friend", HTTP_STATUS.BAD_REQUEST, ERROR_CODES.INVALID_INPUT);
-  }
-
-  const friend = await User.findById(friendId);
-  if (!friend) {
-    throw new AppError("Friend not found", HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND);
-  }
-
-  const user = await User.findById(req.user.id);
-  if (user.friends.includes(friendId)) {
-    throw new AppError("Already friends", HTTP_STATUS.BAD_REQUEST, ERROR_CODES.INVALID_INPUT);
-  }
-
-  user.friends.push(friendId);
-  await user.save();
-
-  sendSuccess(res, { friend: { id: friend._id, name: friend.name, avatar: friend.avatar } }, "Friend added successfully");
-});
-
-/**
- * Remove a friend
- * @route DELETE /api/user/friends/:friendId
- */
-export const removeFriend = asyncHandler(async (req, res) => {
-  const { friendId } = req.params;
-
-  if (!mongoose.Types.ObjectId.isValid(friendId)) {
-    throw new AppError("Invalid friend ID", HTTP_STATUS.BAD_REQUEST, ERROR_CODES.INVALID_INPUT);
-  }
-
-  const user = await User.findById(req.user.id);
-  user.friends = user.friends.filter(id => id.toString() !== friendId);
-  await user.save();
-
-  sendSuccess(res, null, "Friend removed successfully");
-});
-
-/**
- * Get user's friends list
- * @route GET /api/user/friends
- */
-export const getFriends = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).populate('friends', 'name avatar email profileVisibility');
-
-  if (!user) {
-    throw new AppError("User not found", HTTP_STATUS.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND);
-  }
-
-  // Filter out private profiles if not friends (but since these are friends, they should be visible)
-  const friends = user.friends.filter(friend => friend.profileVisibility === 'public');
-
-  sendSuccess(res, friends, "Friends retrieved successfully");
 });
