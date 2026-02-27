@@ -83,7 +83,7 @@
     "progress-tracker", 
     "api", 
     "express", 
-    "nodejs"
+    {
   ],
   
   // Package author and licensing information
