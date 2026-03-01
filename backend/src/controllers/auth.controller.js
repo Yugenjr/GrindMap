@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { AppError } from "../utils/appError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendSuccess, RESPONSE_MESSAGES, ERROR_CODES } from "../utils/response.util.js";
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -12,15 +13,23 @@ export const registerUser = asyncHandler(async (req, res, next) => {
   const { name, email, password } = req.body;
 
   const exists = await User.findOne({ email });
-  if (exists) return next(new AppError("User already exists", 400));
+  if (exists) {
+    return next(new AppError("User already exists", 400, true, ERROR_CODES.USER_EXISTS));
+  }
 
   const user = await User.create({ name, email, password });
 
-  res.status(201).json({
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    token: generateToken(user._id),
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: RESPONSE_MESSAGES.REGISTER_SUCCESS,
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      token: generateToken(user._id),
+    },
   });
 });
 
@@ -28,15 +37,25 @@ export const loginUser = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
-  if (!user) return next(new AppError("Invalid credentials", 401));
+  if (!user) {
+    return next(new AppError("Invalid credentials", 401, true, ERROR_CODES.INVALID_CREDENTIALS));
+  }
 
   const match = await bcrypt.compare(password, user.password);
-  if (!match) return next(new AppError("Invalid credentials", 401));
+  if (!match) {
+    return next(new AppError("Invalid credentials", 401, true, ERROR_CODES.INVALID_CREDENTIALS));
+  }
 
-  res.json({
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    token: generateToken(user._id),
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: RESPONSE_MESSAGES.LOGIN_SUCCESS,
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      token: generateToken(user._id),
+    },
   });
 });

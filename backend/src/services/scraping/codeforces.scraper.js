@@ -110,7 +110,7 @@ export async function fetchCodeforcesStats(username) {
         ? "Invalid username"
         : normalizeCfError(error, "Failed to fetch Codeforces data");
 
-    // Keep errors same style as your other scraper
-    throw new Error(message);
+    // Centralized error forwarding
+    throw new AppError(message, 500);
   }
 }

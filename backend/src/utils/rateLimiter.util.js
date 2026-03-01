@@ -17,10 +17,7 @@ export const rateLimiter = (maxRequests = 10, windowMs = 60000) => {
     }
     
     if (record.count >= maxRequests) {
-      return res.status(429).json({ 
-        error: 'Too many requests',
-        retryAfter: Math.ceil((record.resetTime - now) / 1000)
-      });
+      return next(new AppError('Too many requests', 429));
     }
     
     record.count++;

@@ -43,11 +43,11 @@ async function fetchLeetCodeStats(username) {
       logActivity(`Fetched data for ${username}: ${JSON.stringify(data)}`);
       if (!handleLeetCodeEdgeCases(data)) {
         logActivity(`Malformed response for ${username}`);
-        throw new Error("Malformed LeetCode response");
+        throw new AppError("Malformed LeetCode response", 500);
       }
       if (data.status === "error" || data.status === "fail") {
         logActivity(`API error for ${username}: ${data.message}`);
-        throw new Error(data.message || "LeetCode API error");
+        throw new AppError(data.message || "LeetCode API error", 500);
       }
       logActivity(`Success for ${username}`);
       return {
@@ -59,13 +59,12 @@ async function fetchLeetCodeStats(username) {
       };
     } catch (err) {
       logActivity(`Error on attempt ${attempt} for ${username}: ${err.message}`);
-      lastError = err;
+      lastError = err instanceof AppError ? err : new AppError(err.message, 500);
       if (attempt < MAX_RETRIES) {
         await sleep(RETRY_DELAY_MS);
       }
     }
   }
   logActivity(`Failed for ${username}: ${lastError ? lastError.message : "Unknown error"}`);
-  // Return mock data for testing reliability
-  return generateMockLeetCodeData(username);
+  throw lastError || new AppError("Unknown error", 500);
 }
