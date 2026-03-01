@@ -1,17 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PLATFORMS } from "../utils/platforms";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 export const useGrindMapData = () => {
   const [usernames, setUsernames] = useState({
     leetcode: "",
     codeforces: "",
     codechef: "",
+    hackerearth: "",
   });
+  const [userProfile, setUserProfile] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [platformData, setPlatformData] = useState({
     leetcode: null,
     codeforces: null,
     codechef: null,
+    hackerearth: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -29,9 +34,7 @@ export const useGrindMapData = () => {
     try {
       let data = null;
       if (plat.key === "leetcode") {
-        const res = await fetch(
-          `http://localhost:5000/api/leetcode/${username}`,
-        );
+        const res = await fetch(`${API_BASE_URL}/api/leetcode/${username}`);
         const result = await res.json();
         if (result.data) {
           data = result.data;
@@ -39,9 +42,7 @@ export const useGrindMapData = () => {
           data = { error: "User not found" };
         }
       } else if (plat.key === "codeforces") {
-        const res = await fetch(
-          `http://localhost:5000/api/codeforces/${username}`,
-        );
+        const res = await fetch(`${API_BASE_URL}/api/codeforces/${username}`);
         const result = await res.json();
         if (result.success && result.data) {
           const { stats } = result.data;
@@ -55,9 +56,7 @@ export const useGrindMapData = () => {
           data = { error: result.error || "User not found" };
         }
       } else if (plat.key === "codechef") {
-        const res = await fetch(
-          `http://localhost:5000/api/codechef/${username}`,
-        );
+        const res = await fetch(`${API_BASE_URL}/api/codechef/${username}`);
         const result = await res.json();
         if (result.success && result.data) {
           const { stats } = result.data;
@@ -71,6 +70,33 @@ export const useGrindMapData = () => {
         } else {
           data = { error: result.error || "User not found" };
         }
+      } else if (plat.key === "hackerearth") {
+        const res = await fetch(
+          `${API_BASE_URL}/api/scrape/hackerearth/${username}`,
+        );
+        const result = await res.json();
+        if (result.success && result.data) {
+          const { data: stats } = result;
+
+          data = {
+            rating: result.data.rating,
+            solved: result.data.totalSolved,
+            badges: result.data.badges,
+            activity: result.data.recentActivity
+          };
+        } else {
+          data = { error: result.error || "User not found" };
+        }
+      } else if (plat.key === "hackerrank") {
+        const res = await fetch(
+          `${API_BASE_URL}/api/scrape/hackerrank/${username}`,
+        );
+        const result = await res.json();
+        if (result.success && result.data) {
+          data = result.data;
+        } else {
+          data = { error: result.error || "User not found" };
+        }
       }
       return { key: plat.key, data };
     } catch (err) {
@@ -80,6 +106,25 @@ export const useGrindMapData = () => {
 
   const fetchAll = async () => {
     setLoading(true);
+
+    // Save usernames to backend if authenticated
+    if (isAuthenticated) {
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API_BASE_URL}/api/user/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            platformUsernames: usernames,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save usernames:', error);
+      }
+    }
 
     // Parallel execution for better performance
     const promises = PLATFORMS.map((plat) => fetchPlatformData(plat));
@@ -92,6 +137,28 @@ export const useGrindMapData = () => {
 
     setPlatformData(newData);
     setLoading(false);
+
+    // Save progress to backend if authenticated
+    if (isAuthenticated) {
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API_BASE_URL}/api/user/progress`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            platform: 'all',
+            username: 'combined',
+            data: { totalSolved },
+            submittedToday: PLATFORMS.some(plat => hasSubmittedToday(plat.key)),
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to save progress:', error);
+      }
+    }
   };
 
   const getPlatformPercentage = (platKey) => {
@@ -106,6 +173,18 @@ export const useGrindMapData = () => {
     }
     if (platKey === "codechef") {
       return data.rating ? Math.round((data.rating / 3000) * 100) : 0;
+    }
+    if (platKey === "hackerearth") {
+      // Metric: Use Rating if available (max ~3000), otherwise use Solved count (goal ~500)
+      if (data.rating > 0) {
+        return Math.round((data.rating / 3000) * 100);
+      }
+      return data.solved ? Math.min(Math.round((data.solved / 500) * 100), 100) : 0;
+    }
+    if (platKey === "hackerrank") {
+      return data.badges
+        ? Math.min(Math.round((data.badges.length / 10) * 100), 100)
+        : 0;
     }
     return 0;
   };
@@ -135,7 +214,8 @@ export const useGrindMapData = () => {
   const totalSolved =
     (platformData.leetcode?.totalSolved || 0) +
     (platformData.codeforces?.solved || 0) +
-    (platformData.codechef?.problem_fully_solved || 0);
+    (platformData.codechef?.problem_fully_solved || 0) +
+    (platformData.hackerearth?.solved || 0);
 
   return {
     usernames,

@@ -1,36 +1,34 @@
-import rateLimit from 'express-rate-limit';
+import DistributedRateLimiter from '../utils/distributedRateLimiter.js';
+import { RATE_LIMITS, HTTP_STATUS } from '../constants/app.constants.js';
 
-// General API rate limit
-const generalLimiter = rateLimit({
+/**
+ * General API rate limiter using distributed Redis storage
+ */
+const generalLimiter = DistributedRateLimiter.createMiddleware({
+  windowMs: RATE_LIMITS.GENERAL_WINDOW_MS,
+  max: RATE_LIMITS.GENERAL_MAX_REQUESTS,
+  keyGenerator: (req) => req.ip,
+  message: 'Too many requests, please try again later'
+});
+
+/**
+ * Strict rate limiter for resource-intensive scraping endpoints
+ */
+const scrapingLimiter = DistributedRateLimiter.createMiddleware({
+  windowMs: RATE_LIMITS.SCRAPING_WINDOW_MS,
+  max: RATE_LIMITS.SCRAPING_MAX_REQUESTS,
+  keyGenerator: (req) => `${req.ip}:${req.params.username || 'anonymous'}`,
+  message: 'Rate limit exceeded for scraping endpoints'
+});
+
+/**
+ * Login rate limiter with user-specific tracking
+ */
+const loginLimiter = DistributedRateLimiter.createMiddleware({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
-  message: {
-    success: false,
-    error: {
-      message: 'Too many requests, please try again later',
-      retryAfter: '15 minutes'
-    }
-  },
-  standardHeaders: true,
-  legacyHeaders: false
+  max: 5, // 5 attempts per window
+  keyGenerator: (req) => `login:${req.ip}:${req.body.email || 'anonymous'}`,
+  message: 'Too many login attempts, please try again after 15 minutes'
 });
 
-// Strict rate limit for scraping endpoints
-const scrapingLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 requests per minute
-  message: {
-    success: false,
-    error: {
-      message: 'Rate limit exceeded for scraping endpoints',
-      retryAfter: '1 minute'
-    }
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    return req.ip + ':' + req.params.username; // IP + username combination
-  }
-});
-
-export { generalLimiter, scrapingLimiter };
+export { generalLimiter, scrapingLimiter, loginLimiter };

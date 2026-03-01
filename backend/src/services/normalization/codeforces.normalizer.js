@@ -1,14 +1,24 @@
-export function normalizeCodeforces(data) {
-  return {
-    platform: "codeforces",
-    username: data.username,
-    stats: {
-      totalSolved: data.totalSolved,
-      rating: data.rating,
-      rank: data.rank,
-      maxRating: data.maxRating
-    },
-    streak: { current: 0, max: 0 },
-    activity: []
-  };
+import BaseNormalizer from './common.normalizer.js';
+
+class CodeforcesNormalizer extends BaseNormalizer {
+  get platform() {
+    return 'codeforces';
+  }
+
+  get maxRating() {
+    return this.getField('maxRating') || 0;
+  }
+
+  normalize() {
+    const base = super.normalize();
+    return {
+      ...base,
+      maxRating: this.maxRating,
+    };
+  }
+}
+
+export function normalizeCodeforces(input) {
+  const normalizer = new CodeforcesNormalizer(input);
+  return normalizer.normalize();
 }

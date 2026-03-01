@@ -1,0 +1,78 @@
+/* Dashboard.module.css */
+
+.buttonContainer {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.demoButton {
+  padding: 10px 20px;
+  font-size: 1em;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.analyticsButton {
+  padding: 10px 20px;
+  font-size: 1em;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.achievementsButton {
+  padding: 10px 20px;
+  font-size: 1em;
+  background: #9b59b6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .buttonContainer {
+    margin-bottom: 15px;
+  }
+
+  .demoButton,
+  .analyticsButton,
+  .achievementsButton {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    display: inline-block;
+    width: auto;
+  }
+
+  .buttonContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .demoButton,
+  .analyticsButton,
+  .achievementsButton {
+    margin-right: 0;
+    margin-bottom: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .demoButton,
+  .analyticsButton,
+  .achievementsButton {
+    padding: 6px 12px;
+    font-size: 0.8em;
+  }
+}

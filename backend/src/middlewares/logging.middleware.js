@@ -1,4 +1,5 @@
 import morgan from 'morgan';
+import { asyncMiddleware } from '../utils/asyncWrapper.js';
 
 const requestLogger = morgan((tokens, req, res) => {
   const log = {
@@ -27,45 +28,50 @@ const requestLogger = morgan((tokens, req, res) => {
   return JSON.stringify(log);
 });
 
-const securityMonitor = (req, res, next) => {
-  const startTime = Date.now();
-  
-  // Track suspicious patterns
-  const suspiciousPatterns = [
-    /\.\./,  // Path traversal
-    /<script/i,  // XSS attempts
-    /union.*select/i,  // SQL injection
-    /javascript:/i  // JS injection
-  ];
+const securityMonitor = asyncMiddleware(async (req, res, next) => {
+  try {
+    const startTime = Date.now();
+    
+    // Track suspicious patterns
+    const suspiciousPatterns = [
+      /\.\./,  // Path traversal
+      /<script/i,  // XSS attempts
+      /union.*select/i,  // SQL injection
+      /javascript:/i  // JS injection
+    ];
 
-  const isSuspicious = suspiciousPatterns.some(pattern => 
-    pattern.test(req.url) || pattern.test(JSON.stringify(req.body))
-  );
+    const isSuspicious = suspiciousPatterns.some(pattern => 
+      pattern.test(req.url) || pattern.test(JSON.stringify(req.body))
+    );
 
-  if (isSuspicious) {
-    console.warn('🚨 SECURITY ALERT:', {
-      timestamp: new Date().toISOString(),
-      ip: req.ip,
-      method: req.method,
-      url: req.url,
-      userAgent: req.get('User-Agent'),
-      body: req.body
-    });
-  }
-
-  // Track response time
-  res.on('finish', () => {
-    const duration = Date.now() - startTime;
-    if (duration > 5000) {
-      console.warn('⚠️ SLOW REQUEST:', {
-        url: req.url,
+    if (isSuspicious) {
+      console.warn('🚨 SECURITY ALERT:', {
+        timestamp: new Date().toISOString(),
+        ip: req.ip,
         method: req.method,
-        duration: `${duration}ms`
+        url: req.url,
+        userAgent: req.get('User-Agent'),
+        body: req.body
       });
     }
-  });
 
-  next();
-};
+    // Track response time
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      if (duration > 5000) {
+        console.warn('⚠️ SLOW REQUEST:', {
+          url: req.url,
+          method: req.method,
+          duration: `${duration}ms`
+        });
+      }
+    });
+
+    next();
+  } catch (error) {
+    console.error('Security monitoring error:', error);
+    next(); // Continue even if monitoring fails
+  }
+});
 
 export { requestLogger, securityMonitor };

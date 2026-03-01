@@ -73,10 +73,37 @@ const errorHandler = (err, req, res, next) => {
     },
     ...(err.meta && !isProduction && { timestamp: new Date().toISOString() }),
   });
+
+  // Send standardized error response
+  const response = {
+    success: false,
+    message: process.env.NODE_ENV === ENVIRONMENTS.PRODUCTION && statusCode >= 500 
+      ? 'Internal server error' 
+      : message,
+    errorCode,
+    correlationId: req.correlationId
+  };
+
+  // Only include stack trace in development
+  if (process.env.NODE_ENV === ENVIRONMENTS.DEVELOPMENT && err.stack) {
+    response.stack = err.stack;
+  }
+
+  res.status(statusCode).json(response);
 };
 
+/**
+ * 404 handler for undefined routes
+ */
 const notFound = (req, res, next) => {
-  res.status(404).json({
+  Logger.warn('Route not found', {
+    correlationId: req.correlationId,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip
+  });
+  
+  res.status(HTTP_STATUS.NOT_FOUND).json({
     success: false,
     message: `Route ${req.originalUrl} not found`,
     error: {

@@ -1,0 +1,414 @@
+/* ========================================
+   HR ENHANCED CARD - PREMIUM STYLING
+   Bento Grid + Glassmorphism + Animations
+======================================== */
+
+.hr-enhanced-card {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(71, 85, 105, 0.4);
+  border-radius: 24px;
+  padding: 24px;
+  color: #e2e8f0;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Header */
+.hr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.hr-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hr-icon {
+  font-size: 32px;
+}
+
+.hr-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #2ec866 0%, #1e90ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hr-username {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.hr-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #2ec866 0%, #22c55e 100%);
+  color: #052e16;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(46, 200, 102, 0.3);
+}
+
+.hr-export-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(46, 200, 102, 0.4);
+}
+
+.hr-export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Bento Grid */
+.hr-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.hr-bento-item {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.hr-bento-item:hover {
+  border-color: rgba(46, 200, 102, 0.5);
+  transform: translateY(-2px);
+}
+
+.hr-bento-stars {
+  grid-column: span 1;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.1) 0%,
+    rgba(245, 158, 11, 0.05) 100%
+  );
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.hr-bento-chart {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.hr-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hr-stat-icon.hr-green {
+  background: rgba(46, 200, 102, 0.15);
+  color: #2ec866;
+}
+.hr-stat-icon.hr-blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.hr-stat-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hr-stat-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.hr-gold {
+  color: #fbbf24;
+}
+.hr-green {
+  color: #2ec866;
+}
+.hr-blue {
+  color: #3b82f6;
+}
+
+.hr-level-badge {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: rgba(251, 191, 36, 0.15);
+  border-radius: 8px;
+  color: #fbbf24;
+  width: fit-content;
+}
+
+.hr-chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.hr-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hr-legend.gold {
+  color: #fbbf24;
+}
+.hr-legend.silver {
+  color: #9ca3af;
+}
+.hr-legend.bronze {
+  color: #d97706;
+}
+
+/* Progress Section */
+.hr-progress-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 16px;
+  border: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+.hr-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 16px;
+  color: #e2e8f0;
+}
+
+.hr-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hr-progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hr-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.hr-progress-name {
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.hr-progress-stars {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.hr-progress-bar {
+  height: 8px;
+  background: rgba(51, 65, 85, 0.5);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hr-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+}
+
+/* Badges Section */
+.hr-badges-section {
+  padding: 16px;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 16px;
+  border: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+.hr-badges-grid {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.hr-badges-grid::-webkit-scrollbar {
+  height: 4px;
+}
+
+.hr-badges-grid::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.5);
+  border-radius: 4px;
+}
+
+.hr-badge {
+  min-width: 90px;
+  padding: 12px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hr-badge.gold {
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.2),
+    rgba(245, 158, 11, 0.1)
+  );
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+.hr-badge.silver {
+  background: linear-gradient(
+    135deg,
+    rgba(156, 163, 175, 0.2),
+    rgba(107, 114, 128, 0.1)
+  );
+  border: 1px solid rgba(156, 163, 175, 0.4);
+}
+
+.hr-badge.bronze {
+  background: linear-gradient(
+    135deg,
+    rgba(217, 119, 6, 0.2),
+    rgba(180, 83, 9, 0.1)
+  );
+  border: 1px solid rgba(217, 119, 6, 0.4);
+}
+
+.hr-badge-hex {
+  width: 50px;
+  height: 58px;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hr-badge.gold .hr-badge-hex {
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+}
+.hr-badge.silver .hr-badge-hex {
+  background: linear-gradient(180deg, #d1d5db, #9ca3af);
+}
+.hr-badge.bronze .hr-badge-hex {
+  background: linear-gradient(180deg, #d97706, #b45309);
+}
+
+.hr-badge-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1;
+}
+
+.hr-badge-cat {
+  font-size: 6px;
+  font-weight: 600;
+  color: #333;
+  max-width: 40px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.hr-badge-stars {
+  font-size: 0.65rem;
+  color: #fbbf24;
+  letter-spacing: 2px;
+}
+
+/* Empty State */
+.hr-enhanced-card--empty {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.hr-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.hr-enhanced-card--empty h3 {
+  margin: 0 0 8px;
+  color: #e2e8f0;
+}
+
+.hr-enhanced-card--empty p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hr-bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hr-bento-stars {
+    grid-column: span 2;
+  }
+  .hr-bento-chart {
+    grid-column: span 2;
+  }
+
+  .hr-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .hr-export-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

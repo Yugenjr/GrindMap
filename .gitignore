@@ -1,1 +1,52 @@
-node_modules/ 
+# Dependencies
+node_modules/
+
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Debug/Test files (development only)
+*.html
+!frontend/public/*.html
+!frontend/index.html
+*.png
+!frontend/public/**/*.png
+audit_*.js
+debug_*.js
+*_test.js
+test_*.js
+*_test.mjs
+test_*.mjs
+simple_test.js
+detailed_test.js
+hr_profile_dump.html
+
+# Coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

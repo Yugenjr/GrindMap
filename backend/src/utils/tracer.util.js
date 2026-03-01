@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import Logger from './logger.js';
 
 class Tracer {
   constructor() {
@@ -64,9 +65,9 @@ class Tracer {
     const trace = this.getTrace(traceId);
     if (!trace) return;
 
-    console.log(`[TRACE] ${trace.traceId} | ${trace.operation} | ${trace.duration}ms`);
+    Logger.info(`[TRACE] ${trace.traceId} | ${trace.operation} | ${trace.duration}ms`);
     trace.spans.forEach(span => {
-      console.log(`  [SPAN] ${span.operation} | ${span.duration || 'pending'}ms`);
+      Logger.info(`  [SPAN] ${span.operation} | ${span.duration || 'pending'}ms`);
     });
   }
 

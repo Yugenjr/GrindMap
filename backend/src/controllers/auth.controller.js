@@ -5,8 +5,20 @@ import { AppError } from "../utils/appError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess, RESPONSE_MESSAGES, ERROR_CODES } from "../utils/response.util.js";
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+/**
+ * JWT token expiration time
+ */
+const JWT_EXPIRES_IN = '7d';
+
+/**
+ * Generate JWT token for user authentication
+ * @param {string} userId - User's database ID
+ * @returns {string} JWT token
+ */
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, config.JWT_SECRET || process.env.JWT_SECRET, {
+    expiresIn: config.JWT_EXPIRES_IN || JWT_EXPIRES_IN
+  });
 };
 
 export const registerUser = asyncHandler(async (req, res, next) => {
@@ -17,7 +29,13 @@ export const registerUser = asyncHandler(async (req, res, next) => {
     return next(new AppError("User already exists", 400, true, ERROR_CODES.USER_EXISTS));
   }
 
-  const user = await User.create({ name, email, password });
+    const userData = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      token,
+      sessionId
+    };
 
   return sendSuccess(res, {
     statusCode: 201,
