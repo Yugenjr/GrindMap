@@ -1,60 +1,77 @@
-import { HTTP_STATUS, ENVIRONMENTS } from '../constants/app.constants.js';
-import Logger from '../utils/logger.js';
+import { logError } from '../utils/logger.util.js';
+import { ERROR_CODES } from '../utils/response.util.js';
 
-/**
- * Enhanced error handler with structured logging
- */
 const errorHandler = (err, req, res, next) => {
-  let { statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR, message, errorCode = 'SERVER_ERROR' } = err;
+  let { statusCode = 500, message, code } = err;
+  let errorCode = code || ERROR_CODES.INTERNAL_SERVER_ERROR;
 
   // Handle specific error types
   if (err.name === 'ValidationError') {
-    statusCode = HTTP_STATUS.BAD_REQUEST;
-    errorCode = 'VALIDATION_ERROR';
+    statusCode = 400;
+    errorCode = ERROR_CODES.VALIDATION_ERROR;
     message = Object.values(err.errors).map(val => val.message).join(', ');
   }
   
   if (err.code === 11000) {
-    statusCode = HTTP_STATUS.BAD_REQUEST;
-    errorCode = 'DUPLICATE_FIELD';
-    message = process.env.NODE_ENV === ENVIRONMENTS.PRODUCTION 
-      ? 'Duplicate field value' 
-      : `Duplicate field: ${Object.keys(err.keyValue).join(', ')}`;
-  }
-
-  if (err.name === 'JsonWebTokenError') {
-    statusCode = HTTP_STATUS.UNAUTHORIZED;
-    errorCode = 'INVALID_TOKEN';
-    message = 'Invalid authentication token';
-  }
-
-  if (err.name === 'TokenExpiredError') {
-    statusCode = HTTP_STATUS.UNAUTHORIZED;
-    errorCode = 'TOKEN_EXPIRED';
-    message = 'Authentication token expired';
+    statusCode = 400;
+    errorCode = ERROR_CODES.DUPLICATE_ENTRY;
+    message = 'Duplicate field value entered';
+    
+    // Extract field name from error
+    const field = Object.keys(err.keyPattern || {})[0];
+    if (field) {
+      message = `${field} already exists`;
+    }
   }
 
   if (err.name === 'CastError') {
-    statusCode = HTTP_STATUS.BAD_REQUEST;
-    errorCode = 'INVALID_ID';
-    message = 'Invalid resource ID';
+    statusCode = 400;
+    errorCode = ERROR_CODES.INVALID_INPUT;
+    message = 'Invalid ID format';
   }
 
-  // Structured error logging
-  Logger.error('Request error', {
-    correlationId: req.correlationId,
+  if (err.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    errorCode = ERROR_CODES.INVALID_TOKEN;
+    message = 'Invalid token';
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    statusCode = 401;
+    errorCode = ERROR_CODES.TOKEN_EXPIRED;
+    message = 'Token expired';
+  }
+
+  // Centralized error logging
+  logError({
+    statusCode,
+    message,
+    errorCode,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get ? req.get('User-Agent') : undefined,
+    time: new Date().toISOString(),
+    ...(err.meta && { meta: err.meta }),
+  });
+
+  // Determine if error details should be exposed
+  const isProduction = process.env.NODE_ENV === 'production';
+  const exposedMessage = isProduction && statusCode >= 500 
+    ? 'Internal server error' 
+    : message;
+
+  // Send standardized error response
+  res.status(statusCode).json({
+    success: false,
+    message: exposedMessage,
     error: {
-      message: err.message,
-      statusCode,
-      errorCode,
-      stack: process.env.NODE_ENV === ENVIRONMENTS.DEVELOPMENT ? err.stack : undefined
+      code: errorCode,
+      ...(err.meta && { details: err.meta }),
+      ...(!isProduction && { stack: err.stack }),
     },
-    request: {
-      method: req.method,
-      url: req.originalUrl,
-      ip: req.ip,
-      userAgent: req.get('User-Agent')
-    }
+    ...(err.meta && !isProduction && { timestamp: new Date().toISOString() }),
   });
 
   // Send standardized error response
@@ -89,8 +106,11 @@ const notFound = (req, res, next) => {
   res.status(HTTP_STATUS.NOT_FOUND).json({
     success: false,
     message: `Route ${req.originalUrl} not found`,
-    errorCode: 'ROUTE_NOT_FOUND',
-    correlationId: req.correlationId
+    error: {
+      code: ERROR_CODES.NOT_FOUND,
+      path: req.originalUrl,
+      method: req.method,
+    }
   });
 };
 

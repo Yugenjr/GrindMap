@@ -47,6 +47,14 @@ class CodeforcesScraper extends BaseScraper {
       apiEndpoint: 'codeforces.com/api',
       circuitBreakerState: codeforcesClient.getCircuitBreakerState()
     };
+  } catch (error) {
+    const message =
+      error?.message === "Invalid username"
+        ? "Invalid username"
+        : normalizeCfError(error, "Failed to fetch Codeforces data");
+
+    // Centralized error forwarding
+    throw new AppError(message, 500);
   }
 }
 

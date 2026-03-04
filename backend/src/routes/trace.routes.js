@@ -1,13 +1,20 @@
 import { tracer } from '../utils/tracer.util.js';
+import { AppError } from '../utils/appError.js';
+import { sendSuccess, RESPONSE_MESSAGES, ERROR_CODES } from '../utils/response.util.js';
 
 export const traceRoutes = (app) => {
   // Get specific trace
-  app.get('/traces/:traceId', (req, res) => {
+  app.get('/traces/:traceId', (req, res, next) => {
     const trace = tracer.getTrace(req.params.traceId);
     if (!trace) {
-      return res.status(404).json({ error: 'Trace not found' });
+      return next(new AppError('Trace not found', 404, true, ERROR_CODES.NOT_FOUND));
     }
-    res.json(trace);
+    
+    return sendSuccess(res, {
+      statusCode: 200,
+      message: RESPONSE_MESSAGES.FETCH_SUCCESS,
+      data: { trace },
+    });
   });
 
   // Get all active traces (last 100)
@@ -23,6 +30,14 @@ export const traceRoutes = (app) => {
         spanCount: trace.spans.length
       }));
     
-    res.json({ traces, total: tracer.traces.size });
+    return sendSuccess(res, {
+      statusCode: 200,
+      message: RESPONSE_MESSAGES.FETCH_SUCCESS,
+      data: { traces },
+      meta: {
+        total: tracer.traces.size,
+        displayed: traces.length,
+      },
+    });
   });
 };

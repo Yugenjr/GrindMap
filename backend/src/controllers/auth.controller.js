@@ -1,13 +1,9 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { AppError, ERROR_CODES } from "../utils/appError.js";
-import { sendSuccess, sendError } from "../utils/response.helper.js";
+import { AppError } from "../utils/appError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { HTTP_STATUS, MESSAGES } from "../constants/app.constants.js";
-import AtomicOperations from "../utils/atomicOperations.js";
-import DistributedSessionManager from "../utils/distributedSessionManager.js";
-import config from "../config/env.js";
+import { sendSuccess, RESPONSE_MESSAGES, ERROR_CODES } from "../utils/response.util.js";
 
 /**
  * JWT token expiration time
@@ -25,38 +21,13 @@ const generateToken = (userId) => {
   });
 };
 
-/**
- * Controller for handling user authentication
- * Follows Single Responsibility Principle
- */
-class AuthController {
-  /**
-   * Register a new user
-   * @route POST /api/auth/register
-   */
-  registerUser = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body;
+export const registerUser = asyncHandler(async (req, res, next) => {
+  const { name, email, password } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      throw new AppError(
-        "User already exists with this email",
-        HTTP_STATUS.BAD_REQUEST,
-        ERROR_CODES.USER_EXISTS
-      );
-    }
-
-    // Create new user
-    const user = await User.create({ name, email, password });
-
-    // Generate token and create distributed session
-    const token = generateToken(user._id);
-    const sessionId = await DistributedSessionManager.createSession(user._id, {
-      email: user.email,
-      name: user.name,
-      role: user.role
-    });
+  const exists = await User.findOne({ email });
+  if (exists) {
+    return next(new AppError("User already exists", 400, true, ERROR_CODES.USER_EXISTS));
+  }
 
     const userData = {
       id: user._id,
@@ -66,162 +37,43 @@ class AuthController {
       sessionId
     };
 
-    // Set session cookie
-    res.cookie('sessionId', sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
-
-    sendSuccess(res, userData, "User registered successfully", HTTP_STATUS.CREATED);
+  return sendSuccess(res, {
+    statusCode: 201,
+    message: RESPONSE_MESSAGES.REGISTER_SUCCESS,
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      token: generateToken(user._id),
+    },
   });
+});
 
-  /**
-   * Login existing user (ATOMIC with distributed session)
-   * @route POST /api/auth/login
-   */
-  loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+export const loginUser = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
 
-    // Find user with password field
-    const user = await User.findOne({ email }).select('+password +loginAttempts +lockUntil');
-    if (!user) {
-      throw new AppError(
-        "Invalid email or password",
-        HTTP_STATUS.UNAUTHORIZED,
-        ERROR_CODES.INVALID_CREDENTIALS
-      );
-    }
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("Invalid credentials", 401, true, ERROR_CODES.INVALID_CREDENTIALS));
+  }
 
-    // Check if account is locked
-    if (user.lockUntil && user.lockUntil > Date.now()) {
-      throw new AppError(
-        "Account temporarily locked due to too many failed attempts",
-        HTTP_STATUS.UNAUTHORIZED,
-        ERROR_CODES.ACCOUNT_LOCKED
-      );
-    }
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) {
+    return next(new AppError("Invalid credentials", 401, true, ERROR_CODES.INVALID_CREDENTIALS));
+  }
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      // Atomic increment of login attempts
-      await user.incLoginAttempts();
-      throw new AppError(
-        "Invalid email or password",
-        HTTP_STATUS.UNAUTHORIZED,
-        ERROR_CODES.INVALID_CREDENTIALS
-      );
-    }
-
-    // Successful login - atomic token update and create distributed session
-    const token = generateToken(user._id);
-    await AtomicOperations.updateTokens(user._id, {
-      lastLogin: new Date()
-    });
-
-    // Create distributed session
-    const sessionId = await DistributedSessionManager.createSession(user._id, {
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      loginTime: new Date().toISOString()
-    });
-
-    const userData = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      token,
-      sessionId
-    };
-
-    // Set session cookie
-    res.cookie('sessionId', sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    });
-
-    sendSuccess(res, userData, "Login successful");
+  return sendSuccess(res, {
+    statusCode: 200,
+    message: RESPONSE_MESSAGES.LOGIN_SUCCESS,
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      token: generateToken(user._id),
+    },
   });
-
-  /**
-    * Handle GitHub OAuth callback
-    * @route GET /api/auth/github/callback
-    */
-  githubCallback = asyncHandler(async (req, res) => {
-    const user = req.user;
-    const token = generateToken(user._id);
-
-    // Atomic update for last login
-    await AtomicOperations.updateTokens(user._id, {
-      lastLogin: new Date()
-    });
-
-    // Validated Frontend URL
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-
-    // Redirect to frontend with token
-    res.redirect(`${frontendUrl}/oauth/callback?token=${token}&userId=${user._id}&name=${encodeURIComponent(user.name)}`);
-  });
-
-  /**
-    * Logout user and destroy distributed session
-    * @route POST /api/auth/logout
-    */
-  logoutUser = asyncHandler(async (req, res) => {
-    const sessionId = req.headers['x-session-id'] || req.cookies?.sessionId;
-
-    if (sessionId) {
-      await DistributedSessionManager.deleteSession(sessionId);
-    }
-
-    res.clearCookie('sessionId');
-    sendSuccess(res, null, "Logout successful");
-  });
-
-  /**
-   * Get current user profile
-   * @route GET /api/auth/profile
-   */
-  getUserProfile = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user.id).select('-password');
-
-    if (!user) {
-      throw new AppError(
-        "User not found",
-        HTTP_STATUS.NOT_FOUND,
-        ERROR_CODES.USER_NOT_FOUND
-      );
-    }
-
-    sendSuccess(res, user, "Profile retrieved successfully");
-  });
-
-  /**
-   * Update user profile
-   * @route PUT /api/auth/profile
-   */
-  updateProfile = asyncHandler(async (req, res) => {
-    const { name, bio } = req.body;
-    
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, bio },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      throw new AppError(
-        "User not found", 
-        HTTP_STATUS.NOT_FOUND, 
-        ERROR_CODES.USER_NOT_FOUND
-      );
-    }
-
-    sendSuccess(res, user, "Profile updated successfully");
-  });
-}
-
-export default new AuthController();
+});

@@ -23,13 +23,13 @@
     "dev:debug": "nodemon --inspect src/server.js"
   },
   "keywords": [
-    "competitive-programming",
-    "leetcode",
-    "codeforces",
-    "progress-tracker",
-    "api",
-    "express",
-    "nodejs"
+    "competitive-programming", 
+    "leetcode", 
+    "codeforces", 
+    "progress-tracker", 
+    "api", 
+    "express", 
+    {
   ],
   "author": "GrindMap Team",
   "license": "ISC",

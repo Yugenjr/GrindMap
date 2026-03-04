@@ -1,55 +1,72 @@
-import ApiClient from '../../utils/apiClient.js';
-import BaseScraper from './baseScraper.js';
+import axios from "axios";
+import { logActivity } from "./leetcode.scraper.activity.js";
+import { handleLeetCodeEdgeCases, generateMockLeetCodeData } from "./leetcode.scraper.extended.js";
 
-// Create LeetCode API client with circuit breaker
-const leetcodeClient = ApiClient.createLeetCodeClient();
+const MAX_RETRIES = 5;
+const RETRY_DELAY_MS = 2000;
 
-class LeetCodeScraper extends BaseScraper {
-  constructor() {
-    super('LEETCODE', {
-      enableRetry: true,
-      enableFallback: true,
-      cacheTTL: 300
-    });
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isValidLeetCodeUsername(username) {
+  // LeetCode usernames are alphanumeric, may include underscores
+  return /^[a-zA-Z0-9_]{3,30}$/.test(username);
+}
+
+async function fetchLeetCodeStats(username) {
+  const url = `https://leetcode-stats.tashif.codes/${username}`;
+  try {
+    const response = await axios.get(url, { timeout: 10000 });
+    return response.data;
+  } catch (err) {
+    throw err;
   }
+}
 
-  async _executeScrape(validatedUsername) {
-    // Use retry logic for the API call
-    const response = await this._withRetry(
-      async () => {
-        return await leetcodeClient.get(`https://leetcode-stats.tashif.codes/${validatedUsername}`, {
-          cacheTTL: this.options.cacheTTL,
-          cacheKey: this._getCacheKey(validatedUsername)
-        });
-      },
-      validatedUsername,
-      { apiEndpoint: 'leetcode-stats.tashif.codes' }
-    );
-
-    return response;
-  }
-
-  _validateResponse(data) {
-    // Validate API response structure
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid response from LeetCode API: response data is missing or not an object');
-    }
-
-    if (data.message === 'User not found') {
-      throw new Error('User not found on LeetCode');
-    }
-
-    if (data.totalSolved === undefined || data.totalQuestions === undefined) {
-      throw new Error('Invalid response from LeetCode API: required fields missing');
-    }
-  }
-
-  _getErrorContext() {
+  if (!isValidLeetCodeUsername(username)) {
+    logActivity(`Invalid username: ${username}`);
     return {
-      apiEndpoint: 'leetcode-stats.tashif.codes',
-      circuitBreakerState: leetcodeClient.getCircuitBreakerState()
+      platform: "LEETCODE",
+      username,
+      data: null,
+      status: "fail",
+      message: "Invalid LeetCode username format"
     };
   }
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    logActivity(`Attempt ${attempt} for username: ${username}`);
+    try {
+      const data = await fetchLeetCodeStats(username);
+      logActivity(`Fetched data for ${username}: ${JSON.stringify(data)}`);
+      if (!handleLeetCodeEdgeCases(data)) {
+        logActivity(`Malformed response for ${username}`);
+        throw new AppError("Malformed LeetCode response", 500);
+      }
+      if (data.status === "error" || data.status === "fail") {
+        logActivity(`API error for ${username}: ${data.message}`);
+        throw new AppError(data.message || "LeetCode API error", 500);
+      }
+      logActivity(`Success for ${username}`);
+      return {
+        platform: "LEETCODE",
+        username,
+        data,
+        status: "success",
+        message: "retrieved"
+      };
+    } catch (err) {
+      logActivity(`Error on attempt ${attempt} for ${username}: ${err.message}`);
+      lastError = err instanceof AppError ? err : new AppError(err.message, 500);
+      if (attempt < MAX_RETRIES) {
+        await sleep(RETRY_DELAY_MS);
+      }
+    }
+  }
+  logActivity(`Failed for ${username}: ${lastError ? lastError.message : "Unknown error"}`);
+  throw lastError || new AppError("Unknown error", 500);
 }
 
 // Create singleton instance
