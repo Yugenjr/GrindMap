@@ -14,5 +14,5 @@ if (platform === "LEETCODE") {
 
 console.log("Raw:", result);
 
-const normalized = normalizeLeetCode(result.data);
+const normalized = normalizeLeetCode({ username, data: result.data });
 console.log("Normalized:", normalized);

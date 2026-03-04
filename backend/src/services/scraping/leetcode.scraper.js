@@ -68,3 +68,10 @@ async function fetchLeetCodeStats(username) {
   logActivity(`Failed for ${username}: ${lastError ? lastError.message : "Unknown error"}`);
   throw lastError || new AppError("Unknown error", 500);
 }
+
+// Create singleton instance
+const leetCodeScraper = new LeetCodeScraper();
+
+export async function scrapeLeetCode(username) {
+  return await leetCodeScraper.scrape(username);
+}

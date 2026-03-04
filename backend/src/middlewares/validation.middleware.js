@@ -1,5 +1,6 @@
 import { body, param, query, validationResult } from 'express-validator';
 import xss from 'xss';
+import { escapeString } from '../utils/dbSanitizer.js';
 import { AppError } from '../utils/appError.js';
 import { 
   sanitizeString, 
@@ -52,7 +53,6 @@ const handleValidationErrors = (req, res, next) => {
       { fields: errors.array() }
     ));
   }
-  next();
 };
 
 /**

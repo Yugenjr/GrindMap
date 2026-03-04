@@ -1,8 +1,6 @@
 {
   "testEnvironment": "node",
-  "transform": {
-    "^.+\\.js$": "babel-jest"
-  },
+  "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"],
   "testMatch": [
     "**/__tests__/**/*.js",
     "**/?(*.)+(spec|test).js"
@@ -12,5 +10,8 @@
     "!src/server.js"
   ],
   "coverageDirectory": "coverage",
-  "coverageReporters": ["text", "lcov", "html"]
+  "coverageReporters": ["text", "lcov", "html"],
+  "transform": {
+    "^.+\\.js$": "babel-jest"
+  }
 }

@@ -1,15 +1,17 @@
+import Logger from './logger.js';
+
 export const gracefulShutdown = (server) => {
   const shutdown = (signal) => {
-    console.log(`Received ${signal}. Graceful shutdown...`);
-    
+    Logger.info(`Received ${signal}. Graceful shutdown...`);
+
     server.close(() => {
-      console.log('HTTP server closed.');
+      Logger.info('HTTP server closed.');
       process.exit(0);
     });
-    
+
     // Force close after 10 seconds
     setTimeout(() => {
-      console.log('Forcing shutdown...');
+      Logger.info('Forcing shutdown...');
       process.exit(1);
     }, 10000);
   };

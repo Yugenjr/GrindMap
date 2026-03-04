@@ -1,81 +1,27 @@
 {
-  // Package metadata and configuration
   "name": "backend",
   "version": "1.0.0",
   "description": "GrindMap Backend - Competitive Programming Progress Tracker",
-  "main": "src/server.js", // Entry point for the application
-  
-  // NPM scripts for development and production workflows
+  "main": "src/server.js",
   "scripts": {
-    // Production server start command
     "start": "node src/server.js",
-    
-    // Development server with auto-reload on file changes
     "dev": "nodemon src/server.js",
-    
-    // Testing commands using Jest framework
-    "test": "jest", // Run all tests once
-    "test:watch": "jest --watch", // Run tests in watch mode for development
-    "test:coverage": "jest --coverage", // Generate test coverage reports
-    
-    // Code quality and linting commands
-    "lint": "eslint src/**/*.js", // Check code for linting errors
-    "lint:fix": "eslint src/**/*.js --fix", // Auto-fix linting errors where possible
-    
-    // Code formatting commands using Prettier
-    "format": "prettier --write src/**/*.js", // Format all JavaScript files
-    "format:check": "prettier --check src/**/*.js", // Check if files are formatted
-    
-    // Git hooks setup for pre-commit quality checks
-    "prepare": "husky install", // Install git hooks when npm install runs
-    
-    // Security and dependency management
-    "audit": "npm audit", // Check for security vulnerabilities
-    "audit:fix": "npm audit fix", // Auto-fix security issues where possible
-    "security:audit": "./security-audit.sh --audit-only", // Comprehensive security audit
-    "security:fix": "./security-audit.sh --fix", // Security audit with automatic fixes
-    "security:report": "./security-audit.sh --report-only", // Generate security reports only
-    "deps:check": "npm outdated", // Check for outdated dependencies
-    "deps:update": "npm update --save", // Update dependencies (use with caution)
-    "deps:clean": "rm -rf node_modules package-lock.json && npm install", // Clean dependency reinstall
-    
-    // Build and deployment preparation scripts
-    "prebuild": "npm run lint && npm run test && npm run audit:ci", // Quality checks before build
-    "build": "npm run prebuild && npm run build:copy && npm run build:optimize", // Complete build process
-    "build:copy": "mkdir -p dist && cp -r src dist/ && cp package*.json dist/", // Copy source files to dist
-    "build:optimize": "echo 'Build optimization completed'", // Placeholder for optimization steps
-    "postbuild": "echo 'Build completed successfully - Ready for deployment'", // Post-build confirmation
-    
-    // Deployment scripts for different environments
-    "predeploy": "npm run build", // Ensure build is complete before deployment
-    "deploy": "npm run deploy:production", // Default deployment to production
-    "deploy:staging": "echo 'Deploying to staging environment...'", // Staging deployment
-    "deploy:production": "echo 'Deploying to production environment...'", // Production deployment
-    "deploy:docker": "docker build -t grindmap-backend . && docker run -p 5001:5001 grindmap-backend", // Docker deployment
-    
-    // Environment-specific start commands
-    "start:prod": "NODE_ENV=production node src/server.js", // Production start with env
-    "start:staging": "NODE_ENV=staging node src/server.js", // Staging environment start
-    
-    // CI/CD pipeline scripts
-    "audit:ci": "npm audit --audit-level=moderate --production", // CI security audit
-    "test:ci": "jest --ci --coverage --watchAll=false", // CI/CD optimized test run
-    "lint:ci": "eslint src/**/*.js --format=json --output-file=eslint-report.json", // CI linting with JSON output
-    "ci": "npm run lint:ci && npm run test:ci && npm run audit:ci", // Complete CI pipeline
-    "ci:build": "npm run ci && npm run build", // CI with build
-    "release": "npm run ci:build && npm run deploy", // Complete release process
-    
-    // Health check and monitoring scripts
-    "health": "curl -f http://localhost:5001/health || exit 1", // Health check endpoint
-    "monitor": "npm run health && echo 'Server is healthy'", // Basic monitoring
-    
-    // Development utilities
-    "clean": "rm -rf node_modules package-lock.json dist && npm install", // Clean reinstall
-    "clean:dist": "rm -rf dist", // Clean build directory
-    "dev:debug": "nodemon --inspect src/server.js" // Start with Node.js debugger
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "format": "prettier --write src/**/*.js",
+    "format:check": "prettier --check src/**/*.js",
+    "prepare": "husky install",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:logs": "node scripts/auditViewer.js",
+    "health": "curl -f http://localhost:5001/health || exit 1",
+    "monitor": "npm run health && echo 'Server is healthy'",
+    "clean": "rm -rf node_modules package-lock.json dist && npm install",
+    "dev:debug": "nodemon --inspect src/server.js"
   },
-  
-  // Package keywords for npm registry discoverability
   "keywords": [
     "competitive-programming", 
     "leetcode", 
@@ -85,89 +31,50 @@
     "express", 
     {
   ],
-  
-  // Package author and licensing information
   "author": "GrindMap Team",
   "license": "ISC",
-  
-  // ES6 modules support configuration
-  "type": "module", // Enable ES6 import/export syntax
-  
-  // Production dependencies - required for application runtime
+  "type": "module",
   "dependencies": {
-    // HTTP client for making API requests to external services
-    "axios": "1.6.2", // Pinned version - security patched
-    
-    // Cross-Origin Resource Sharing middleware
-    "cors": "2.8.5", // Pinned version - stable release
-    
-    // Environment variables management
-    "dotenv": "16.3.1", // Pinned version - latest stable
-    
-    // Web application framework
-    "express": "4.18.2", // Pinned to LTS version for stability
-    
-    // Security and rate limiting middleware
-    "express-rate-limit": "7.1.5", // Pinned version - security focused
-    
-    // Input validation and sanitization
-    "express-validator": "7.0.1", // Pinned version - vulnerability free
-    
-    // HTTP request logging middleware
-    "morgan": "1.10.0", // Pinned version - stable
-    
-    // Cross-site scripting (XSS) protection
-    "xss": "1.0.14" // Pinned version - latest security patches
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "connect-redis": "^9.0.0",
+    "cors": "2.8.5",
+    "dotenv": "16.3.1",
+    "express": "^4.22.1",
+    "express-rate-limit": "7.1.5",
+    "express-session": "^1.19.0",
+    "express-validator": "7.0.1",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "1.10.0",
+    "xss": "1.0.14"
   },
-  
-  // Development dependencies - tools for development workflow
   "devDependencies": {
-    // Development server with auto-reload functionality
-    "nodemon": "3.0.2", // Pinned version - stable development tool
-    
-    // Testing framework and utilities
-    "jest": "29.7.0", // Pinned version - latest stable testing framework
-    "supertest": "6.3.3", // Pinned version - HTTP assertion library
-    
-    // Code quality and linting tools
-    "eslint": "8.56.0", // Pinned version - latest stable linter
-    "eslint-config-prettier": "9.1.0", // Pinned version - Prettier integration
-    "eslint-plugin-node": "11.1.0", // Pinned version - Node.js specific rules
-    
-    // Code formatting tool
-    "prettier": "3.1.1", // Pinned version - latest stable formatter
-    
-    // Babel transpilation for testing (ES6 modules support)
-    "@babel/preset-env": "7.23.6", // Pinned version - environment preset
-    "babel-jest": "29.7.0", // Pinned version - Jest Babel integration
-    
-    // Git hooks and pre-commit quality checks
-    "husky": "8.0.3", // Pinned version - Git hooks tool
-    "lint-staged": "15.2.0" // Pinned version - Staged files linter
+    "@babel/preset-env": "7.23.6",
+    "babel-jest": "29.7.0",
+    "eslint": "8.56.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-node": "11.1.0",
+    "husky": "8.0.3",
+    "jest": "29.7.0",
+    "lint-staged": "15.2.0",
+    "nodemon": "3.0.2",
+    "prettier": "3.1.1",
+    "supertest": "6.3.3"
   },
-  
-  // Configuration for lint-staged (pre-commit hooks)
   "lint-staged": {
-    // Run these commands on staged JavaScript files before commit
     "*.js": [
-      "eslint --fix", // Auto-fix linting errors
-      "prettier --write" // Format code according to Prettier rules
+      "eslint --fix",
+      "prettier --write"
     ]
   },
-  
-  // Node.js engine compatibility specification
   "engines": {
-    "node": ">=14.0.0", // Minimum Node.js version required
-    "npm": ">=6.0.0" // Minimum npm version required
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
   },
-  
-  // Repository and bug tracking information
   "repository": {
     "type": "git",
     "url": "https://github.com/Yugenjr/GrindMap.git"
   },
-  
-  // Bug reporting and homepage links
   "bugs": {
     "url": "https://github.com/Yugenjr/GrindMap/issues"
   },

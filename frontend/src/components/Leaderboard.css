@@ -1,0 +1,68 @@
+.leaderboard {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.leaderboard h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.leaderboard-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.leaderboard-controls button {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.leaderboard-controls button.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.user-rank {
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
+
+.rank {
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.username {
+  flex: 1;
+  margin-left: 20px;
+}
+
+.score {
+  font-weight: bold;
+  color: #28a745;
+}

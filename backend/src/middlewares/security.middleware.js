@@ -13,7 +13,7 @@ const securityHeaders = (req, res, next) => {
   // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
   
-  // XSS protection
+  // Enhanced XSS protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
   // Content Security Policy

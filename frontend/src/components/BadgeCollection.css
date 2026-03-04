@@ -17,7 +17,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid rgba(255, 255, 255, 0.1);
-  border-left: 4px solid #4A90E2;
+  border-left: 4px solid var(--theme-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
@@ -34,7 +34,7 @@
 }
 
 .retry-btn {
-  background: #4A90E2;
+  background: var(--theme-primary);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -45,7 +45,7 @@
 }
 
 .retry-btn:hover {
-  background: #357ABD;
+  background: var(--theme-secondary);
 }
 
 .badge-header {
@@ -56,7 +56,7 @@
 .badge-header h2 {
   font-size: 28px;
   margin-bottom: 20px;
-  background: linear-gradient(45deg, #4A90E2, #9B59B6);
+  background: linear-gradient(45deg, var(--theme-primary), var(--theme-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -111,8 +111,8 @@
 }
 
 .tab-btn.active {
-  color: #4A90E2;
-  border-bottom-color: #4A90E2;
+  color: var(--theme-primary);
+  border-bottom-color: var(--theme-primary);
 }
 
 .badge-content {
@@ -142,7 +142,7 @@
 }
 
 .mark-seen-btn {
-  background: linear-gradient(45deg, #FF6B6B, #EE5A24);
+  background: linear-gradient(45deg, var(--theme-error), #EE5A24);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -150,12 +150,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  box-shadow: 0 4px 15px var(--theme-shadow);
 }
 
 .mark-seen-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  box-shadow: 0 6px 20px var(--theme-shadow);
 }
 
 /* Responsive design */

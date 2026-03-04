@@ -1,0 +1,39 @@
+{"timestamp":"2026-01-20T18:05:19.948Z","level":"INFO","message":"Alert rule added","name":"high_memory_usage","metric":"system.memory.heap_used"}
+{"timestamp":"2026-01-20T18:05:20.021Z","level":"INFO","message":"Alert rule added","name":"high_error_rate","metric":"http.requests.errors"}
+{"timestamp":"2026-01-20T18:05:20.022Z","level":"INFO","message":"Alert rule added","name":"event_loop_lag","metric":"system.event_loop.lag"}
+{"timestamp":"2026-01-20T18:05:20.023Z","level":"INFO","message":"Alert rule added","name":"database_unhealthy","metric":"health.database.status"}
+{"timestamp":"2026-01-20T18:05:20.023Z","level":"INFO","message":"Alert rule added","name":"job_queue_backlog","metric":"jobs.pending"}
+{"timestamp":"2026-01-20T18:05:20.024Z","level":"INFO","message":"Alert rule added","name":"high_response_time","metric":"http.request.duration.p95"}
+{"timestamp":"2026-01-20T18:05:20.042Z","level":"INFO","message":"WebSocket server initialized with authentication"}
+{"timestamp":"2026-01-20T18:05:20.042Z","level":"INFO","message":"Batch processing scheduler started"}
+{"timestamp":"2026-01-20T18:05:20.044Z","level":"INFO","message":"Cache warmup scheduled","name":"popular_users","platforms":["leetcode","codeforces","codechef"],"usernames":4}
+{"timestamp":"2026-01-20T18:05:20.045Z","level":"INFO","message":"Cache warmup scheduled","name":"general","platforms":["leetcode","codeforces"],"usernames":0}
+{"timestamp":"2026-01-20T18:05:20.045Z","level":"INFO","message":"Job handler registered","type":"scraping"}
+{"timestamp":"2026-01-20T18:05:20.046Z","level":"INFO","message":"Job handler registered","type":"cache_warmup"}
+{"timestamp":"2026-01-20T18:05:20.046Z","level":"INFO","message":"Job handler registered","type":"analytics"}
+{"timestamp":"2026-01-20T18:05:20.047Z","level":"INFO","message":"Job handler registered","type":"notification"}
+{"timestamp":"2026-01-20T18:05:20.047Z","level":"INFO","message":"Job handler registered","type":"cleanup"}
+{"timestamp":"2026-01-20T18:05:20.047Z","level":"INFO","message":"Job handler registered","type":"export"}
+{"timestamp":"2026-01-20T18:05:20.050Z","level":"INFO","message":"Job processing started","workerId":"worker_54892_1768932319940","concurrency":3,"types":"all"}
+{"timestamp":"2026-01-20T18:05:20.053Z","level":"INFO","message":"Job scheduled","name":"daily_cache_cleanup","cronExpression":"0 2 * * *","jobType":"cleanup"}
+{"timestamp":"2026-01-20T18:05:20.054Z","level":"INFO","message":"Job scheduled","name":"hourly_analytics","cronExpression":"0 * * * *","jobType":"analytics"}
+{"timestamp":"2026-01-20T18:05:20.055Z","level":"INFO","message":"Job scheduled","name":"daily_user_summary","cronExpression":"0 1 * * *","jobType":"analytics"}
+{"timestamp":"2026-01-20T18:05:20.057Z","level":"INFO","message":"Job scheduled","name":"cache_warmup","cronExpression":"*/15 * * * *","jobType":"cache_warmup"}
+{"timestamp":"2026-01-20T18:05:20.058Z","level":"INFO","message":"Job scheduled","name":"notification_processor","cronExpression":"*/5 * * * *","jobType":"notification"}
+{"timestamp":"2026-01-20T18:05:20.058Z","level":"INFO","message":"Job scheduled","name":"database_cleanup","cronExpression":"0 3 * * *","jobType":"cleanup"}
+{"timestamp":"2026-01-20T18:05:20.058Z","level":"INFO","message":"Default schedules setup","count":6}
+{"timestamp":"2026-01-20T18:05:20.059Z","level":"INFO","message":"Cron scheduler started"}
+{"timestamp":"2026-01-20T18:05:20.060Z","level":"INFO","message":"Health monitoring started","interval":30000}
+{"timestamp":"2026-01-20T18:05:20.060Z","level":"INFO","message":"Alert monitoring started","interval":60000,"rules":6}
+{"timestamp":"2026-01-20T18:05:20.065Z","level":"INFO","message":"Attempting database connection","attempt":1,"maxRetries":5}
+{"timestamp":"2026-01-20T18:05:20.116Z","level":"WARN","message":"Redis unavailable, using memory store fallback"}
+{"timestamp":"2026-01-20T18:05:20.117Z","level":"INFO","message":"Redis not available, security features using memory fallback"}
+{"timestamp":"2026-01-20T18:05:20.118Z","level":"WARN","message":"Message queue using memory fallback"}
+{"timestamp":"2026-01-20T18:05:20.119Z","level":"WARN","message":"Cache manager using memory-only mode"}
+{"timestamp":"2026-01-20T18:05:20.121Z","level":"WARN","message":"Job queue using database-only mode"}
+{"timestamp":"2026-01-20T18:05:20.122Z","level":"WARN","message":"Metrics collector using memory-only mode"}
+{"timestamp":"2026-01-20T18:05:20.122Z","level":"WARN","message":"Quota manager using database fallback"}
+{"timestamp":"2026-01-20T18:05:20.271Z","level":"INFO","message":"Database connection established"}
+{"timestamp":"2026-01-20T18:05:20.275Z","level":"INFO","message":"Database connected successfully","host":"localhost","port":27017,"database":"grindmap"}
+✅ MongoDB Connected: localhost
+{"timestamp":"2026-01-20T18:05:20.290Z","level":"ERROR","message":"listen EADDRINUSE: address already in use :::8080","stack":"Error: listen EADDRINUSE: address already in use :::8080\n    at Server.setupListenHandle [as _listen2] (node:net:1940:16)\n    at listenInCluster (node:net:1997:12)\n    at Server.listen (node:net:2102:7)\n    at startServer (file:///B:/Open_Source/grind/GrindMap/backend/src/server.js:257:12)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"}
