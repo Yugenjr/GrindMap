@@ -1,5 +1,7 @@
 import axios from "axios";
 
+const cache = {};
+
 function isValidUsername(username) {
   return typeof username === "string" && username.trim().length >= 2;
 }
@@ -24,11 +26,43 @@ function normalizeCfError(error, fallbackMessage) {
   return fallbackMessage;
 }
 
+function cacheCodeforcesStats(username, data) {
+  cache[username] = {
+    data,
+    timestamp: Date.now()
+  };
+}
+
+function getCachedCodeforcesStats(username) {
+  const entry = cache[username];
+  if (!entry) return null;
+  // Cache valid for 10 minutes
+  if (Date.now() - entry.timestamp > 10 * 60 * 1000) return null;
+  return entry.data;
+}
+
+function analyzeCodeforcesStats(data) {
+  if (!data || typeof data !== "object" || !Array.isArray(data.result)) return null;
+  const user = data.result[0];
+  return {
+    handle: user.handle,
+    rating: user.rating || 0,
+    maxRating: user.maxRating || 0,
+    rank: user.rank || "",
+    contribution: user.contribution || 0,
+    friendOfCount: user.friendOfCount || 0,
+    registrationTime: user.registrationTimeSeconds || null
+  };
+}
+
 export async function fetchCodeforcesStats(username) {
   try {
     if (!isValidUsername(username)) {
       throw new Error("Invalid username");
     }
+
+    const cached = getCachedCodeforcesStats(username);
+    if (cached) return analyzeCodeforcesStats(cached);
 
     const headers = {
       "User-Agent":
@@ -58,6 +92,8 @@ export async function fetchCodeforcesStats(username) {
       }
       throw new Error(comment);
     }
+    cacheCodeforcesStats(username, infoData);
+    return analyzeCodeforcesStats(infoData);
 
     const userInfo = infoData.result?.[0];
     if (!userInfo) throw new Error("User not found");
