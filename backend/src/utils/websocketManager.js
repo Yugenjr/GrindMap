@@ -128,6 +128,9 @@ class WebSocketManager {
         case 'duel_forfeit':
           this.handleDuelForfeit(userId, message);
           break;
+        case 'ide_activity':
+          this.handleIdeActivity(userId, message);
+          break;
         default:
           Logger.warn('Unknown message type', { type: message.type, userId });
       }
@@ -431,10 +434,10 @@ class WebSocketManager {
 
   async handleDuelForfeit(userId, message) {
     const { duelId } = message;
-    
+
     try {
       const duel = await DuelService.forfeitDuel(duelId, userId);
-      
+
       // The service already handles broadcasting forfeit
     } catch (error) {
       this.sendToUser(userId, {
@@ -443,6 +446,27 @@ class WebSocketManager {
         timestamp: new Date().toISOString()
       });
     }
+  }
+
+  handleIdeActivity(userId, message) {
+    const { activityData } = message;
+
+    // Forward to IDE Activity Service for processing
+    IdeActivityService.processIdeActivity(userId, activityData)
+      .then(() => {
+        Logger.info('IDE activity processed via WebSocket', { userId });
+      })
+      .catch(error => {
+        Logger.error('Failed to process IDE activity via WebSocket', {
+          userId,
+          error: error.message
+        });
+        this.sendToUser(userId, {
+          type: 'error',
+          message: 'Failed to process IDE activity',
+          timestamp: new Date().toISOString()
+        });
+      });
   }
 }
 
