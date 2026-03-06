@@ -2,362 +2,317 @@ import { body, param, query, validationResult } from 'express-validator';
 import xss from 'xss';
 import { escapeString } from '../utils/dbSanitizer.js';
 import { AppError } from '../utils/appError.js';
-import { HTTP_STATUS, VALIDATION, ERROR_CODES } from '../constants/app.constants.js';
+import { 
+  sanitizeString, 
+  sanitizeObject,
+  isValidEmail,
+  isValidUsername,
+  validatePasswordStrength,
+  checkInputSecurity,
+} from '../utils/security.util.js';
+import { ERROR_CODES } from '../utils/response.util.js';
 
-// Async middleware wrapper
-const asyncMiddleware = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
-
-// Sanitization middleware
+/**
+ * Enhanced sanitization middleware using security utilities
+ */
 const sanitizeInput = (req, res, next) => {
   try {
     // Sanitize params
-    Object.keys(req.params).forEach(key => {
-      if (typeof req.params[key] === 'string') {
-        req.params[key] = escapeString(xss(req.params[key].trim()));
-      }
-    });
+    if (req.params && typeof req.params === 'object') {
+      req.params = sanitizeObject(req.params);
+    }
 
     // Sanitize query
-    Object.keys(req.query).forEach(key => {
-      if (typeof req.query[key] === 'string') {
-        req.query[key] = escapeString(xss(req.query[key].trim()));
-      }
-    });
+    if (req.query && typeof req.query === 'object') {
+      req.query = sanitizeObject(req.query);
+    }
 
     // Sanitize body
     if (req.body && typeof req.body === 'object') {
-      Object.keys(req.body).forEach(key => {
-        if (typeof req.body[key] === 'string') {
-          req.body[key] = escapeString(xss(req.body[key].trim()));
-        }
-      });
-
-      // Sanitize request body
-      if (req.body && typeof req.body === 'object') {
-        Object.keys(req.body).forEach(key => {
-          if (typeof req.body[key] === 'string') {
-            req.body[key] = xss(req.body[key].trim());
-          }
-        });
-      }
+      req.body = sanitizeObject(req.body);
     }
 
     next();
   } catch (error) {
-    throw new AppError('Input sanitization failed', HTTP_STATUS.BAD_REQUEST, ERROR_CODES.VALIDATION_ERROR);
+    next(new AppError('Input sanitization failed', 400, true, ERROR_CODES.INVALID_INPUT));
   }
 };
 
 /**
- * Validation error handler middleware
- * Converts express-validator errors to standardized format
+ * Validation error handler with consistent response format
  */
-const handleValidationErrors = asyncMiddleware(async (req, res, next) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const errorMessages = errors.array().map(error => error.msg);
-      throw new AppError(
-        errorMessages.join(', '),
-        HTTP_STATUS.BAD_REQUEST,
-        ERROR_CODES.VALIDATION_ERROR
-      );
-    }
-    next();
-  } catch (error) {
-    next(error);
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const errorMessages = errors.array().map(error => error.msg);
+    return next(new AppError(
+      errorMessages.join(', '), 
+      400, 
+      true, 
+      ERROR_CODES.VALIDATION_ERROR,
+      { fields: errors.array() }
+    ));
   }
-});
+};
 
 /**
- * Username validation rules for platform endpoints
- * Ensures username meets platform requirements
+ * Username validation rules
  */
 const validateUsername = [
   param('username')
-    .isLength({
-      min: VALIDATION.USERNAME_MIN_LENGTH,
-      max: VALIDATION.USERNAME_MAX_LENGTH
+    .trim()
+    .custom((value) => {
+      if (!isValidUsername(value)) {
+        throw new Error('Username must be 3-30 characters and contain only letters, numbers, hyphens, and underscores');
+      }
+      
+      // Check for security threats
+      const securityCheck = checkInputSecurity(value);
+      if (!securityCheck.safe) {
+        throw new Error('Invalid username format detected');
+      }
+      
+      return true;
     })
-    .withMessage(`Username must be ${VALIDATION.USERNAME_MIN_LENGTH}-${VALIDATION.USERNAME_MAX_LENGTH} characters`)
-    .matches(VALIDATION.USERNAME_PATTERN)
-    .withMessage('Username can only contain letters, numbers, hyphens, and underscores')
     .escape(),
   handleValidationErrors
 ];
 
 /**
- * Email validation rules for authentication
+ * Email validation rules
  */
 const validateEmail = [
   body('email')
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail()
-    .escape(),
+    .trim()
+    .custom((value) => {
+      if (!isValidEmail(value)) {
+        throw new Error('Please provide a valid email address');
+      }
+      return true;
+    })
+    .normalizeEmail(),
   handleValidationErrors
 ];
 
 /**
- * Password validation rules for authentication
+ * Password validation rules
  */
 const validatePassword = [
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .custom((value) => {
+      const result = validatePasswordStrength(value);
+      if (!result.valid) {
+        throw new Error(result.errors.join(', '));
+      }
+      return true;
+    }),
   handleValidationErrors
 ];
 
 /**
- * User profile update validation
+ * Registration validation
+ */
+const validateRegistration = [
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage('Name can only contain letters, spaces, hyphens, and apostrophes')
+    .escape(),
+  
+  body('email')
+    .trim()
+    .custom((value) => {
+      if (!isValidEmail(value)) {
+        throw new Error('Please provide a valid email address');
+      }
+      return true;
+    })
+    .normalizeEmail(),
+  
+  body('password')
+    .custom((value) => {
+      const result = validatePasswordStrength(value);
+      if (!result.valid) {
+        throw new Error(result.errors.join(', '));
+      }
+      return true;
+    }),
+  
+  handleValidationErrors
+];
+
+/**
+ * Login validation
+ */
+const validateLogin = [
+  body('email')
+    .trim()
+    .notEmpty()
+    .withMessage('Email is required')
+    .custom((value) => {
+      if (!isValidEmail(value)) {
+        throw new Error('Please provide a valid email address');
+      }
+      return true;
+    }),
+  
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required'),
+  
+  handleValidationErrors
+];
+
+/**
+ * Profile update validation
  */
 const validateProfileUpdate = [
   body('name')
     .optional()
     .trim()
-    .isLength({ min: 2, max: 50 })
-    .withMessage('Name must be 2-50 characters long')
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s'-]+$/)
+    .withMessage('Name can only contain letters, spaces, hyphens, and apostrophes')
     .escape(),
-  body('username')
-    .optional()
-    .trim()
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Username must be 1-50 characters long')
-    .matches(/^[a-zA-Z0-9_-]+$/)
-    .withMessage('Username can only contain letters, numbers, hyphens, and underscores')
-    .escape(),
+  
   body('email')
     .optional()
-    .isEmail()
-    .withMessage('Please provide a valid email address')
-    .normalizeEmail()
-    .escape(),
+    .trim()
+    .custom((value) => {
+      if (value && !isValidEmail(value)) {
+        throw new Error('Please provide a valid email address');
+      }
+      return true;
+    }),
+  
   body('bio')
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Bio cannot exceed 500 characters')
-    .escape(),
-  body('isPublic')
-    .optional()
-    .isBoolean()
-    .withMessage('isPublic must be a boolean value'),
-  handleValidationErrors
-];
-
-/**
- * Friend request validation
- */
-const validateFriendRequest = [
-  body('receiverId')
-    .isMongoId()
-    .withMessage('Invalid receiver ID format')
-    .escape(),
-  handleValidationErrors
-];
-
-/**
- * Goal creation/update validation
- */
-const validateGoal = [
-  body('title')
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Goal title must be 1-100 characters')
-    .escape(),
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters')
-    .escape(),
-  body('targetValue')
-    .isInt({ min: 1, max: 10000 })
-    .withMessage('Target value must be between 1 and 10000'),
-  body('deadline')
-    .optional()
-    .isISO8601()
-    .withMessage('Invalid deadline format'),
-  body('isPublic')
-    .optional()
-    .isBoolean()
-    .withMessage('isPublic must be a boolean value'),
-  handleValidationErrors
-];
-
-/**
- * Badge creation validation
- */
-const validateBadge = [
-  body('name')
-    .trim()
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Badge name must be 1-50 characters')
-    .escape(),
-  body('description')
-    .trim()
-    .isLength({ min: 1, max: 200 })
-    .withMessage('Badge description must be 1-200 characters')
-    .escape(),
-  body('icon')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Icon URL cannot exceed 100 characters')
-    .escape(),
-  body('criteria')
-    .isObject()
-    .withMessage('Criteria must be an object'),
-  handleValidationErrors
-];
-
-/**
- * Grind room validation
- */
-const validateGrindRoom = [
-  body('name')
-    .trim()
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Room name must be 1-50 characters')
-    .escape(),
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 200 })
-    .withMessage('Description cannot exceed 200 characters')
-    .escape(),
-  body('isPrivate')
-    .optional()
-    .isBoolean()
-    .withMessage('isPrivate must be a boolean value'),
-  body('maxParticipants')
-    .optional()
-    .isInt({ min: 2, max: 50 })
-    .withMessage('Max participants must be between 2 and 50'),
-  handleValidationErrors
-];
-
-/**
- * Tournament validation
- */
-const validateTournament = [
-  body('name')
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Tournament name must be 1-100 characters')
-    .escape(),
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Description cannot exceed 500 characters')
-    .escape(),
-  body('startDate')
-    .isISO8601()
-    .withMessage('Invalid start date format'),
-  body('endDate')
-    .isISO8601()
-    .withMessage('Invalid end date format')
-    .custom((endDate, { req }) => {
-      if (new Date(endDate) <= new Date(req.body.startDate)) {
-        throw new Error('End date must be after start date');
+    .withMessage('Bio must not exceed 500 characters')
+    .custom((value) => {
+      if (value) {
+        const securityCheck = checkInputSecurity(value);
+        if (!securityCheck.safe) {
+          throw new Error('Bio contains invalid or suspicious content');
+        }
       }
       return true;
     }),
-  body('maxParticipants')
-    .optional()
-    .isInt({ min: 2, max: 1000 })
-    .withMessage('Max participants must be between 2 and 1000'),
-  body('rules')
-    .optional()
-    .isArray()
-    .withMessage('Rules must be an array'),
+  
   handleValidationErrors
 ];
 
 /**
- * Sprint validation
+ * Pagination validation
  */
-const validateSprint = [
-  body('name')
-    .trim()
-    .isLength({ min: 1, max: 50 })
-    .withMessage('Sprint name must be 1-50 characters')
-    .escape(),
-  body('description')
+const validatePagination = [
+  query('page')
     .optional()
-    .trim()
-    .isLength({ max: 200 })
-    .withMessage('Description cannot exceed 200 characters')
-    .escape(),
-  body('duration')
-    .isInt({ min: 1, max: 365 })
-    .withMessage('Duration must be between 1 and 365 days'),
-  body('targetProblems')
-    .isInt({ min: 1, max: 1000 })
-    .withMessage('Target problems must be between 1 and 1000'),
+    .isInt({ min: 1 })
+    .withMessage('Page must be a positive integer')
+    .toInt(),
+  
+  query('limit')
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage('Limit must be between 1 and 100')
+    .toInt(),
+  
   handleValidationErrors
 ];
 
 /**
- * File upload validation
+ * MongoDB ObjectId validation
  */
-const validateFileUpload = [
-  body('fileName')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('File name cannot exceed 100 characters')
-    .escape(),
-  body('fileType')
-    .optional()
-    .trim()
-    .isLength({ max: 50 })
-    .withMessage('File type cannot exceed 50 characters')
-    .escape(),
+const validateObjectId = (paramName = 'id') => [
+  param(paramName)
+    .matches(/^[0-9a-fA-F]{24}$/)
+    .withMessage('Invalid ID format'),
   handleValidationErrors
 ];
 
 /**
- * Search/query validation
+ * Search query validation
  */
 const validateSearchQuery = [
   query('q')
     .optional()
     .trim()
     .isLength({ min: 1, max: 100 })
-    .withMessage('Search query must be 1-100 characters')
-    .escape(),
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100')
-    .toInt(),
-  query('offset')
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage('Offset must be non-negative')
-    .toInt(),
+    .withMessage('Search query must be between 1 and 100 characters')
+    .custom((value) => {
+      if (value) {
+        const securityCheck = checkInputSecurity(value);
+        if (!securityCheck.safe) {
+          throw new Error('Search query contains invalid or suspicious content');
+        }
+      }
+      return true;
+    }),
+  
   handleValidationErrors
 ];
 
+/**
+ * Platform name validation
+ */
+const validatePlatform = [
+  param('platform')
+    .trim()
+    .isIn(['leetcode', 'codeforces', 'codechef', 'hackerrank', 'atcoder'])
+    .withMessage('Invalid platform. Must be one of: leetcode, codeforces, codechef, hackerrank, atcoder')
+    .escape(),
+  handleValidationErrors
+];
+
+/**
+ * Generic validate middleware factory
+ */
+const validate = (validations) => {
+  return async (req, res, next) => {
+    for (let validation of validations) {
+      const result = await validation.run(req);
+      if (!result.isEmpty()) break;
+    }
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const errorMessages = errors.array().map(error => error.msg);
+      return next(new AppError(
+        errorMessages.join(', '), 
+        400, 
+        true, 
+        ERROR_CODES.VALIDATION_ERROR,
+        { fields: errors.array() }
+      ));
+    }
+    
+    next();
+  };
+};
+
+/**
+ * Sanitize function compatible with legacy code
+ */
+const sanitize = sanitizeInput;
+
 export {
   sanitizeInput,
+  sanitize,
   validateUsername,
   validateEmail,
   validatePassword,
+  validateRegistration,
+  validateLogin,
   validateProfileUpdate,
-  validateFriendRequest,
-  validateGoal,
-  validateBadge,
-  validateGrindRoom,
-  validateTournament,
-  validateSprint,
-  validateFileUpload,
+  validatePagination,
+  validateObjectId,
   validateSearchQuery,
-  handleValidationErrors
+  validatePlatform,
+  handleValidationErrors,
+  validate,
 };
