@@ -10,6 +10,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Analytics from "./components/Analytics";
 import Goals from "./components/Goals";
 import Recommendations from "./components/Recommendations";
+import PrivacyPolicy from "./components/PrivacyPolicy";
+import TermsConditions from "./components/TermsConditions";
+import Footer from '../components/Footer';
 
 function App() {
   return (
@@ -24,6 +27,9 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsConditions />} />
+
 
         {/* Protected Routes */}
         <Route
@@ -100,6 +106,7 @@ function App() {
 
         {/* Catch-all for undefined routes */}
         <Route path="*" element={<Navigate to="/login" replace />} />
+        <Footer />
       </Routes>
     </Router>
   );
