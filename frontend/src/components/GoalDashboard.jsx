@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import GoalCard from './GoalCard';
+import { API_BASE_URL } from '../utils/api';
 import './GoalDashboard.css';
 
 const GoalDashboard = () => {
@@ -19,7 +20,7 @@ const GoalDashboard = () => {
   const fetchGoals = async (status = null) => {
     try {
       const token = localStorage.getItem('token');
-      const url = status ? `/api/goals?status=${status}` : '/api/goals';
+      const url = status ? `${API_BASE_URL}/goals?status=${status}` : `${API_BASE_URL}/goals`;
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -34,7 +35,7 @@ const GoalDashboard = () => {
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/goals/templates');
+      const response = await fetch(`${API_BASE_URL}/goals/templates`);
       if (response.ok) {
         const data = await response.json();
         setTemplates(data);
@@ -47,7 +48,7 @@ const GoalDashboard = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/goals/stats', {
+      const response = await fetch(`${API_BASE_URL}/goals/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -64,7 +65,7 @@ const GoalDashboard = () => {
   const handleUpdateProgress = async (goalId, newValue, note = null) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/goals/${goalId}/progress`, {
+      const response = await fetch(`${API_BASE_URL}/goals/${goalId}/progress`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +93,7 @@ const GoalDashboard = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/goals/${goalId}`, {
+      const response = await fetch(`${API_BASE_URL}/goals/${goalId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -109,7 +110,7 @@ const GoalDashboard = () => {
   const handleCreateFromTemplate = async (templateId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/goals/template', {
+      const response = await fetch(`${API_BASE_URL}/goals/template`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

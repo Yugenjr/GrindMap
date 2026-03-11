@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Badge from './Badge';
+import { API_BASE_URL } from '../utils/api';
 import './BadgeCollection.css';
 
 const BadgeCollection = ({ userId }) => {
@@ -16,7 +17,7 @@ const BadgeCollection = ({ userId }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/badges/', {
+      const response = await fetch(`${API_BASE_URL}/badges/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -38,7 +39,7 @@ const BadgeCollection = ({ userId }) => {
   const markBadgesAsSeen = async (badgeIds) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch('/api/badges/seen', {
+      await fetch(`${API_BASE_URL}/badges/seen`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

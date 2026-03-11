@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import './Friends.css';
 
 const Friends = ({ onBack }) => {
@@ -14,7 +15,7 @@ const Friends = ({ onBack }) => {
   const fetchFriends = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/friends', {
+      const response = await fetch(`${API_BASE_URL}/friends`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -45,7 +46,7 @@ const Friends = ({ onBack }) => {
   const addFriend = async (friendId) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch('/api/friends/add', {
+      await fetch(`${API_BASE_URL}/friends/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +65,7 @@ const Friends = ({ onBack }) => {
   const removeFriend = async (friendId) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`/api/friends/${friendId}`, {
+      await fetch(`${API_BASE_URL}/friends/${friendId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

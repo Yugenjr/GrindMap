@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import './Leaderboard.css';
 
 const Leaderboard = ({ onBack }) => {
@@ -15,7 +16,7 @@ const Leaderboard = ({ onBack }) => {
   const fetchLeaderboard = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/leaderboard?type=${type}`, {
+      const response = await fetch(`${API_BASE_URL}/leaderboard?type=${type}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -30,7 +31,7 @@ const Leaderboard = ({ onBack }) => {
   const fetchUserRank = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/leaderboard/rank', {
+      const response = await fetch(`${API_BASE_URL}/leaderboard/rank`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
